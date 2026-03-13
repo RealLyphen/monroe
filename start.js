@@ -3,7 +3,7 @@ const { spawn } = require('child_process');
 console.log('🚀 Starting Monroe production environment...');
 
 // Start the Next.js production server
-const nextServer = spawn('npm', ['run', 'start'], {
+const nextServer = spawn('npm', ['run', 'next-start'], {
   stdio: 'inherit',
   shell: true,
   env: process.env
