@@ -1,0 +1,195 @@
+/* ══════════════════════════════════════
+   ReviewsTeaser Section
+══════════════════════════════════════ */
+
+.section {
+  position: relative;
+  background: #000000;
+  padding: 40px 24px 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The boxed layout container */
+.box {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  background: linear-gradient(180deg, #06070a 0%, #030406 100%);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 24px;
+  overflow: hidden;
+  padding: 100px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
+}
+
+/* ── Grid overlay inside the box ── */
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Center fade mask — fades the lines from center outward ── */
+.centerFade {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 50% 60% at 50% 50%, rgba(6, 7, 10, 0.85) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ════════════════════════════════════
+   Neon glowing lines — YELLOW, with glow
+════════════════════════════════════ */
+.neonLine {
+  position: absolute;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(245, 197, 24, 0.5) 30%, rgba(245, 197, 24, 0.7) 50%, rgba(245, 197, 24, 0.5) 70%, transparent 100%);
+  box-shadow:
+    0 0 6px 1px rgba(245, 197, 24, 0.35),
+    0 0 20px 2px rgba(245, 197, 24, 0.12);
+  z-index: 0;
+}
+
+/* Left-side neon lines */
+.nl1 { top: 18%; left: 0; width: 48%; transform: rotate(12deg); transform-origin: left center; }
+.nl2 { top: 38%; left: 0; width: 55%; transform: rotate(6deg); transform-origin: left center; }
+.nl3 { top: 62%; left: 0; width: 55%; transform: rotate(-6deg); transform-origin: left center; }
+.nl4 { top: 82%; left: 0; width: 48%; transform: rotate(-12deg); transform-origin: left center; }
+
+/* Right-side neon lines */
+.nl5 { top: 18%; right: 0; width: 48%; transform: rotate(-12deg); transform-origin: right center; }
+.nl6 { top: 38%; right: 0; width: 55%; transform: rotate(-6deg); transform-origin: right center; }
+.nl7 { top: 62%; right: 0; width: 55%; transform: rotate(6deg); transform-origin: right center; }
+.nl8 { top: 82%; right: 0; width: 48%; transform: rotate(12deg); transform-origin: right center; }
+
+/* ════════════════════════════════════
+   Background lines — dimmer, no glow
+════════════════════════════════════ */
+.bgLine {
+  position: absolute;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.05) 70%, transparent 100%);
+  z-index: 0;
+}
+
+.bl1 { top: 28%; left: 0; width: 52%; transform: rotate(9deg); transform-origin: left center; }
+.bl2 { top: 50%; left: 0; width: 60%; transform: rotate(0deg); transform-origin: left center; }
+.bl3 { top: 72%; left: 0; width: 52%; transform: rotate(-9deg); transform-origin: left center; }
+
+.bl4 { top: 28%; right: 0; width: 52%; transform: rotate(-9deg); transform-origin: right center; }
+.bl5 { top: 50%; right: 0; width: 60%; transform: rotate(0deg); transform-origin: right center; }
+.bl6 { top: 72%; right: 0; width: 52%; transform: rotate(9deg); transform-origin: right center; }
+
+/* ── Center content ── */
+.inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  max-width: 680px;
+  width: 100%;
+}
+
+/* ── Heading ── */
+.heading {
+  font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.highlight {
+  background: linear-gradient(120deg, #f5c518 0%, #ffdd57 50%, #f09020 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Sub ── */
+.sub {
+  font-size: 15.5px;
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1.75;
+  max-width: 460px;
+  margin: 0;
+}
+
+/* ── CTA button ── */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 30px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  backdrop-filter: blur(8px);
+  letter-spacing: -0.01em;
+}
+
+.cta:hover {
+  background: rgba(245, 197, 24, 0.1);
+  border-color: rgba(245, 197, 24, 0.4);
+  box-shadow: 0 0 24px -4px rgba(245, 197, 24, 0.2);
+  color: #f5c518;
+}
+
+.cta svg {
+  transition: transform 0.22s ease;
+}
+.cta:hover svg { transform: translateX(4px); }
+
+/* ── Trust note ── */
+.trustNote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.38);
+  margin: 0;
+}
+
+.checkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(245, 197, 24, 0.15);
+  color: #f5c518;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .section { padding: 40px 20px 60px; }
+  .box { padding: 80px 20px; border-radius: 20px; }
+  .neonLine { opacity: 0.4; }
+  .bgLine { opacity: 0.3; }
+}

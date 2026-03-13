@@ -1,0 +1,203 @@
+.section {
+  padding: 60px 0 var(--section-padding);
+  background: var(--color-dark);
+  position: relative;
+  overflow: hidden;
+}
+
+.bgGlow {
+  position: absolute;
+  top: 10%;
+  left: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse, rgba(245, 197, 24, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Two-column grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 48px;
+  align-items: start;
+}
+
+/* ── Left — flex column: title at top, card at bottom ── */
+.left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 40px;
+  /* Match the height of the right column by stretching */
+  align-self: stretch;
+}
+
+
+
+.tagline {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #f5c518;
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  background: rgba(245, 197, 24, 0.06);
+  padding: 5px 14px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 800;
+  color: var(--color-white);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.titleMuted {
+  background: linear-gradient(120deg, #f5c518 0%, #ffdd57 45%, #f09020 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Contact card — pushed to the bottom of the left column */
+.contactCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contactTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-white);
+}
+
+.contactText {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.65;
+}
+
+.contactBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 11px 22px;
+  background: #f5c518;
+  color: #0b0c10;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 10px;
+  text-decoration: none;
+  width: fit-content;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.contactBtn:hover {
+  opacity: 0.88;
+  transform: translateY(-2px);
+}
+
+/* ── Right: accordion items ── */
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.25s, background 0.25s;
+}
+
+.item:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.itemOpen {
+  border-color: rgba(245, 197, 24, 0.22) !important;
+  background: rgba(245, 197, 24, 0.03) !important;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  user-select: none;
+}
+
+.itemQ {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-white);
+  line-height: 1.4;
+}
+
+/* Arrow button — matches the reference image's dark square icon */
+.itemIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.itemOpen .itemIcon {
+  background: rgba(245, 197, 24, 0.18);
+  color: #f5c518;
+}
+
+/* Answer — fully hidden (height: 0) when closed */
+.itemBody {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease;
+  opacity: 0;
+}
+
+.itemBodyOpen {
+  max-height: 200px;   /* generous cap — text won't be taller than this */
+  opacity: 1;
+}
+
+.itemA {
+  padding: 0 22px 20px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.75;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .left {
+    align-self: auto;
+    gap: 32px;
+  }
+}

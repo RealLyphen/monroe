@@ -1,66 +1,47 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useEffect } from 'react';
+
+import HeroSlider from '@/components/home/HeroSlider';
+import ServicesSection from '@/components/home/ServicesSection';
+import HomeFAQSection from '@/components/home/HomeFAQSection';
+import ReviewsTeaser from '@/components/home/ReviewsTeaser';
+import CTABanner from '@/components/home/CTABanner';
 
 export default function Home() {
+  useEffect(() => {
+    // Remove preloader
+    const preloader = document.getElementById('preloader');
+    if (preloader) {
+      setTimeout(() => preloader.classList.add('loaded'), 500);
+    }
+
+    // Scroll to top button
+    const handleScroll = () => {
+      const btn = document.getElementById('scrollTop');
+      if (btn) {
+        btn.classList.toggle('visible', window.scrollY > 400);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+
+      <main>
+        <HeroSlider />
+        <ServicesSection />
+        <HomeFAQSection />
+        <ReviewsTeaser />
+        <CTABanner />
       </main>
-    </div>
+
+      <button id="scrollTop" className="scroll-to-top" onClick={scrollToTop} aria-label="Scroll to top">
+        ↑
+      </button>
+    </>
   );
 }

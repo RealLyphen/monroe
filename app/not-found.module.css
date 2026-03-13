@@ -1,0 +1,8 @@
+.main { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-dark-2) 50%, #111111 100%); position: relative; overflow: hidden; padding: 120px 0; }
+.bg { position: absolute; inset: 0; }
+.particle { position: absolute; background: var(--color-primary); border-radius: 50%; opacity: 0.2; animation: float 8s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(-30px) translateX(15px); } }
+.content { text-align: center; position: relative; z-index: 2; }
+.code { font-size: clamp(6rem, 15vw, 12rem); font-weight: 700; color: transparent; background: linear-gradient(135deg, var(--color-primary), var(--color-secondary)); -webkit-background-clip: text; background-clip: text; line-height: 1; margin-bottom: 10px; }
+.title { font-size: clamp(1.5rem, 3vw, 2.5rem); color: var(--color-white); margin-bottom: 16px; }
+.text { font-size: 17px; color: rgba(255,255,255,0.6); max-width: 500px; margin: 0 auto 36px; line-height: 1.8; }

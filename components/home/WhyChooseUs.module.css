@@ -1,0 +1,139 @@
+.section {
+  padding: var(--section-padding) 0;
+  background: var(--color-gray-100);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.text {
+  font-size: 16px;
+  color: var(--color-gray-600);
+  line-height: 1.8;
+  margin-bottom: 30px;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 36px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px;
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+}
+
+.feature:hover {
+  transform: translateX(6px);
+  box-shadow: var(--shadow-md);
+}
+
+.featureIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--color-white);
+  flex-shrink: 0;
+}
+
+.feature h4 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-dark);
+  margin-bottom: 4px;
+}
+
+.feature p {
+  font-size: 14px;
+  color: var(--color-gray-600);
+}
+
+.right {
+  display: flex;
+  justify-content: center;
+}
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+}
+
+.imagePlaceholder {
+  width: 100%;
+  aspect-ratio: 4/5;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-dark-2) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.placeholderIcon {
+  font-size: 80px;
+  color: rgba(245, 197, 24, 0.2);
+}
+
+.badge {
+  position: absolute;
+  bottom: 40px;
+  left: -30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 28px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-white);
+  box-shadow: var(--shadow-lg);
+  animation: badgeBounce 3s ease-in-out infinite;
+}
+
+.badgeIcon {
+  font-size: 28px;
+}
+
+.badge strong {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.badge span {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+@keyframes badgeBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .badge {
+    left: 10px;
+    bottom: 20px;
+  }
+}

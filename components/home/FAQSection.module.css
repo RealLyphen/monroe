@@ -1,0 +1,22 @@
+.section { padding: var(--section-padding) 0; background: var(--color-white); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+.accordion { display: flex; flex-direction: column; gap: 12px; margin-top: 30px; }
+.item { border: 1px solid var(--color-gray-200); border-radius: var(--radius-md); overflow: hidden; transition: all 0.3s; }
+.item.itemOpen { border-color: var(--color-primary); box-shadow: 0 4px 20px rgba(245, 197, 24, 0.1); }
+.itemHeader { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; background: none; border: none; font-family: var(--font-heading); font-size: 16px; font-weight: 600; color: var(--color-dark); cursor: pointer; text-align: left; transition: all 0.3s; }
+.itemOpen .itemHeader { color: var(--color-primary); background: rgba(245, 197, 24, 0.04); }
+.chevron { font-size: 20px; transition: transform 0.3s; flex-shrink: 0; }
+.itemOpen .chevron { transform: rotate(180deg); }
+.itemBody { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.4s ease; }
+.itemOpen .itemBody { max-height: 200px; padding: 0 24px 18px; }
+.itemBody p { font-size: 14px; color: var(--color-gray-600); line-height: 1.8; }
+.formCard { background: var(--color-dark); border-radius: var(--radius-lg); padding: 40px; }
+.formTitle { font-size: 24px; color: var(--color-white); margin-bottom: 28px; }
+.form { display: flex; flex-direction: column; gap: 16px; }
+.formRow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.input, .textarea { width: 100%; padding: 14px 18px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-sm); color: var(--color-white); font-family: var(--font-body); font-size: 14px; outline: none; transition: border-color 0.3s; }
+.input::placeholder, .textarea::placeholder { color: rgba(255, 255, 255, 0.4); }
+.input:focus, .textarea:focus { border-color: var(--color-primary); }
+.textarea { resize: none; }
+.input option { background: var(--color-dark); color: var(--color-white); }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .formRow { grid-template-columns: 1fr; } }

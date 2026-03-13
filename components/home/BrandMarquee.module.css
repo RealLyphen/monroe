@@ -1,0 +1,12 @@
+.section { padding: 60px 0; background: var(--color-gray-100); overflow: hidden; }
+.text { text-align: center; font-size: 16px; color: var(--color-gray-600); margin-bottom: 30px; }
+.text strong { color: var(--color-dark); font-weight: 700; }
+.marquee { overflow: hidden; position: relative; }
+.marquee::before, .marquee::after { content: ''; position: absolute; top: 0; bottom: 0; width: 100px; z-index: 2; }
+.marquee::before { left: 0; background: linear-gradient(to right, var(--color-gray-100), transparent); }
+.marquee::after { right: 0; background: linear-gradient(to left, var(--color-gray-100), transparent); }
+.track { display: flex; gap: 60px; animation: scroll 25s linear infinite; width: max-content; }
+.brand { flex-shrink: 0; display: flex; align-items: center; padding: 10px 0; }
+.brandLogo { font-family: var(--font-heading); font-size: 22px; font-weight: 700; color: var(--color-gray-400); letter-spacing: 2px; text-transform: uppercase; transition: color 0.3s; }
+.brand:hover .brandLogo { color: var(--color-primary); }
+@keyframes scroll { to { transform: translateX(-50%); } }

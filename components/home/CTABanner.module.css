@@ -1,0 +1,251 @@
+/* ══════════════════════════════════════════
+   CTABanner — Premium Redesign
+══════════════════════════════════════════ */
+
+.section {
+  position: relative;
+  overflow: hidden;
+  background: #000000;
+  padding: 140px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Background grid overlay ── */
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    /* yellow tint left */
+    radial-gradient(ellipse 50% 80% at 0% 50%, rgba(245, 197, 24, 0.09) 0%, transparent 70%),
+    /* yellow tint right */
+    radial-gradient(ellipse 50% 80% at 100% 50%, rgba(245, 197, 24, 0.07) 0%, transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-attachment: scroll, scroll, fixed, fixed;
+  pointer-events: none;
+}
+
+/* ── Ambient glow orbs ── */
+.orbLeft {
+  position: absolute;
+  left: -180px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 197, 24, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.orbRight {
+  position: absolute;
+  right: -180px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 197, 24, 0.10) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Inner content wrapper ── */
+.inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 28px;
+  max-width: 680px;
+  width: 100%;
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  border-radius: 100px;
+  background: rgba(245, 197, 24, 0.07);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.badgeDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f5c518;
+  box-shadow: 0 0 8px rgba(245, 197, 24, 0.8);
+  animation: pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.75); }
+}
+
+/* ── Heading ── */
+.heading {
+  font-size: clamp(2.8rem, 5.5vw, 4.6rem);
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.headingAccent {
+  background: linear-gradient(120deg, #f5c518 0%, #ffdd57 45%, #f09020 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Subtext ── */
+.sub {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.75;
+  max-width: 480px;
+  margin: 0;
+}
+
+/* ── Feature pills row ── */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(6px);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.pillIcon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ── Action buttons ── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+/* Primary CTA */
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px 36px;
+  background: #f5c518;
+  color: #0b0c10;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 14px;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  box-shadow: 0 6px 24px -4px rgba(245, 197, 24, 0.4);
+}
+
+.ctaPrimary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 36px -4px rgba(245, 197, 24, 0.5);
+}
+
+.ctaPrimary svg {
+  transition: transform 0.22s ease;
+}
+
+.ctaPrimary:hover svg {
+  transform: translateX(4px);
+}
+
+/* Secondary CTA */
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 15px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease;
+  backdrop-filter: blur(8px);
+}
+
+.ctaSecondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .section {
+    padding: 100px 20px;
+  }
+
+  .heading {
+    font-size: clamp(2.2rem, 8vw, 3rem);
+  }
+
+  .orbLeft,
+  .orbRight {
+    width: 340px;
+    height: 340px;
+  }
+
+  .actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .ctaPrimary,
+  .ctaSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
