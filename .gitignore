@@ -41,5 +41,12 @@ yarn-error.log*
 next-env.d.ts
 
 # Custom ignores
-/data/*.json
+/data/packages.json
+/data/users.json
+/data/keys.json
+/data/addresses.json
+/data/notifications.json
+/data/wallets.json
+/data/chat.json
+/data/reviews.json
 *.zip
