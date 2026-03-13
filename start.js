@@ -18,6 +18,18 @@ const telegramBot = spawn('node', ['bot/telegramBot.js'], {
   cwd: __dirname
 });
 
+nextServer.on('close', (code) => {
+  console.log(`\n⚠️ Next.js exited with code ${code}. Shutting down container for clean restart...`);
+  telegramBot.kill();
+  process.exit(code || 1);
+});
+
+telegramBot.on('close', (code) => {
+  console.log(`\n⚠️ Telegram Bot exited with code ${code}. Shutting down container for clean restart...`);
+  nextServer.kill();
+  process.exit(code || 1);
+});
+
 // Handle graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down Monroe...');
