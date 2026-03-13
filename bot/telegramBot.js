@@ -13,10 +13,21 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const BOT_TOKEN = '7693026027:AAGZClqTAP5BxMXou_kSqabIswyAJPvwCi0';
+// Load environment variables from .env file
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const KEYS_PATH = path.join(__dirname, '..', 'data', 'keys.json');
 const POLL_INTERVAL = 1500; // ms
+
+// Ensure token exists before starting
+if (!BOT_TOKEN || BOT_TOKEN === 'your_telegram_bot_token_here') {
+  console.error('\n❌ ERROR: Missing or invalid TELEGRAM_BOT_TOKEN in .env file!');
+  console.error('Please create a bot with @BotFather on Telegram, get the HTTP API Token,');
+  console.error('and add it to your .env file as: TELEGRAM_BOT_TOKEN=your_token_here\n');
+  process.exit(1);
+}
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -117,7 +128,24 @@ async function poll() {
 }
 
 async function main() {
-  console.log('🤖 Monroe Telegram Bot started. Waiting for messages...');
+  console.log('🤖 Monroe Telegram Bot initializing...');
+  
+  // Test the token
+  try {
+    const me = await tgApi('getMe');
+    if (me.ok) {
+      console.log(`✅ Successfully connected to Telegram as @${me.result.username}`);
+      console.log('📡 Waiting for /start or /generate messages...');
+    } else {
+      console.error('\n❌ ERROR: Telegram rejected the BOT_TOKEN. It might be invalid or revoked.');
+      console.error(me);
+      process.exit(1);
+    }
+  } catch(err) {
+    console.error('\n❌ ERROR: Could not reach Telegram API. Check your internet connection.');
+    process.exit(1);
+  }
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     await poll();
