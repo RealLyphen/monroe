@@ -18,7 +18,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const KEYS_PATH = path.join(__dirname, '..', 'data', 'keys.json');
+const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
 const POLL_INTERVAL = 1500; // ms
 
 // Ensure token exists before starting

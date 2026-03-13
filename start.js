@@ -6,14 +6,16 @@ console.log('🚀 Starting Monroe production environment...');
 const nextServer = spawn('npm', ['run', 'next-start'], {
   stdio: 'inherit',
   shell: true,
-  env: process.env
+  env: process.env,
+  cwd: __dirname
 });
 
 // Start the Telegram Bot
 const telegramBot = spawn('node', ['bot/telegramBot.js'], {
   stdio: 'inherit',
   shell: true,
-  env: process.env
+  env: process.env,
+  cwd: __dirname
 });
 
 // Handle graceful shutdown
