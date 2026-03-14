@@ -1,0 +1,8 @@
+[
+  { "id": "ADR-001", "name": "Brianna Walters (USE THIS NAME)", "street": "178 Columbus Ave 237190 st 110144", "city": "New York, NY 10023", "active": true },
+  { "id": "ADR-002", "name": "Daniel Lee (USE THIS NAME)", "street": "1968 S. Coast Hwy #3057", "city": "Laguna Beach, CA 92651", "active": true },
+  { "id": "ADR-003", "name": "David Blanchfield (USE THIS NAME)", "street": "1814 N Memorial Way 103355", "city": "Houston, TX 77007", "active": true },
+  { "id": "ADR-004", "name": "James Kellerman (USE THIS NAME)", "street": "2093 PHILADELPHIA PIKE 2647", "city": "CLAYMONT, DE 19703", "active": true },
+  { "id": "ADR-005", "name": "James Smith (USE THIS NAME)", "street": "304 S. Jones Blvd #2955", "city": "Las Vegas, NV 89107", "active": true },
+  { "id": "ADR-006", "name": "Jane Smith (USE THIS NAME)", "street": "1710 KELLER PARKWAY #5423", "city": "KELLER, TX 76248", "active": true }
+]
