@@ -16,7 +16,10 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://mongo:KirRfHvKDZhmHbjXxzIoLEblmLKHBwsk@switchyard.proxy.rlwy.net:26480';
+let MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI || MONGODB_URI.includes('localhost') || MONGODB_URI.includes('127.0.0.1')) {
+  MONGODB_URI = 'mongodb://mongo:KirRfHvKDZhmHbjXxzIoLEblmLKHBwsk@switchyard.proxy.rlwy.net:26480';
+}
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const POLL_INTERVAL = 1500; // ms
 
