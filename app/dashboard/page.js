@@ -27,7 +27,7 @@ export default function Dashboard() {
   const [searchAddr, setSearchAddr] = useState('');
   const [searchParcels, setSearchParcels] = useState('');
   const [formState, setFormState] = useState({ addressIndex: 0, trackingId: '', note: '', weight: '', dimensions: '' });
-  const [forwardAddress, setForwardAddress] = useState({ name: '', street: '', city: '' });
+  const [forwardAddress, setForwardAddress] = useState({ name: '', street: '', city: '', state: '', zip: '', country: '' });
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [reviewForm, setReviewForm] = useState({ content: '', rating: 5 });
   const [walletForm, setWalletForm] = useState({ username: '', amount: '', type: 'credit', note: '' });
   const [addressModal, setAddressModal] = useState({ isOpen: false, mode: 'ADD', id: null });
-  const [addressForm, setAddressForm] = useState({ name: '', street: '', city: '' });
+  const [addressForm, setAddressForm] = useState({ name: '', street: '', city: '', state: '', zip: '', country: '' });
 
   // Modal states
   const [receiveModal, setReceiveModal] = useState(null);
@@ -183,13 +183,13 @@ export default function Dashboard() {
     if (res.ok) {
       await fetchData();
       setAddressModal({ isOpen: false, mode: 'ADD', id: null });
-      setAddressForm({ name: '', street: '', city: '' });
+      setAddressForm({ name: '', street: '', city: '', state: '', zip: '', country: '' });
     }
     setModalLoading(false);
   };
 
   const openEditAddressModal = (addr) => {
-    setAddressForm({ name: addr.name, street: addr.street, city: addr.city });
+    setAddressForm({ name: addr.name, street: addr.street, city: addr.city, state: addr.state || '', zip: addr.zip || '', country: addr.country || '' });
     setAddressModal({ isOpen: true, mode: 'EDIT', id: addr.id });
   };
 
@@ -216,7 +216,7 @@ export default function Dashboard() {
       await fetchData();
       setSubmitSuccess(true);
       setFormState({ addressIndex: 0, trackingId: '', note: '', weight: '', dimensions: '' });
-      setForwardAddress({ name: '', street: '', city: '' });
+      setForwardAddress({ name: '', street: '', city: '', state: '', zip: '', country: '' });
       setTimeout(() => { setSubmitSuccess(false); setActiveTab('packages'); }, 2000);
     }
   };
@@ -313,7 +313,7 @@ export default function Dashboard() {
     setModalLoading(true);
 
     try {
-      await fetch('/api/packages/forward', {
+      const res = await fetch('/api/packages/forward', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,11 +321,16 @@ export default function Dashboard() {
           forwardAddress
         })
       });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to Forward Package');
+      }
       setUserForwardModal(null);
-      setForwardAddress({ name: '', street: '', city: '' });
+      setForwardAddress({ name: '', street: '', city: '', state: '', zip: '', country: '' });
       fetchData();
     } catch (err) {
       console.error(err);
+      alert(err.message);
     } finally {
       setModalLoading(false);
     }
@@ -464,7 +469,7 @@ export default function Dashboard() {
   const filteredPackages = packages.filter(p => {
     if (isAdmin && activeTab === 'packages') {
       if (adminPackageFilter === 'pending' && p.status !== 'Pending') return false;
-      if (adminPackageFilter === 'forwarding' && (p.status !== 'Received' || !p.forwardAddress || p.forwardTrackingId)) return false;
+      if (adminPackageFilter === 'forwarding' && (p.status !== 'Received' || !p.forwardAddress?.city || p.forwardTrackingId)) return false;
       if (adminPackageFilter === 'completed' && p.status !== 'Completed') return false;
     }
     if (!searchParcels) return true;
@@ -757,9 +762,24 @@ export default function Dashboard() {
                                value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})} />
                       </div>
                       <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
-                        <label>City, State, ZIP, Country</label>
-                        <input type="text" className={styles.input} placeholder="e.g. London, UK W1D 4AG" 
-                               value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})} />
+                        <label>City</label>
+                        <input type="text" className={styles.input} placeholder="e.g. London" 
+                               value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})} required />
+                      </div>
+                      <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
+                        <label>State / Province</label>
+                        <input type="text" className={styles.input} placeholder="e.g. NY" 
+                               value={addressForm.state} onChange={e => setAddressForm({...addressForm, state: e.target.value})} required />
+                      </div>
+                      <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
+                        <label>ZIP / Postal Code</label>
+                        <input type="text" className={styles.input} placeholder="e.g. 10001" 
+                               value={addressForm.zip} onChange={e => setAddressForm({...addressForm, zip: e.target.value})} required />
+                      </div>
+                      <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
+                        <label>Country</label>
+                        <input type="text" className={styles.input} placeholder="e.g. USA" 
+                               value={addressForm.country} onChange={e => setAddressForm({...addressForm, country: e.target.value})} required />
                       </div>
 
                       <button type="submit" className={styles.submitBtn} disabled={modalLoading} style={{width: '100%', marginTop: '16px'}}>
@@ -833,7 +853,7 @@ export default function Dashboard() {
                     <div style={{display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px'}}>
                       <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'all' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'all' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('all')}>All</button>
                       <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'pending' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'pending' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('pending')}>Pending ({packages.filter(p => p.status === 'Pending').length})</button>
-                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'forwarding' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'forwarding' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('forwarding')}>Forward Requests ({packages.filter(p => p.status === 'Received' && p.forwardAddress && !p.forwardTrackingId).length})</button>
+                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'forwarding' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'forwarding' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('forwarding')}>Forward Requests ({packages.filter(p => p.status === 'Received' && p.forwardAddress?.city && !p.forwardTrackingId).length})</button>
                       <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'completed' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'completed' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('completed')}>Completed</button>
                     </div>
                   )}
@@ -945,12 +965,12 @@ export default function Dashboard() {
                               </div>
                             ) : (
                               <div>
-                                {p.status === 'Received' && !p.forwardTrackingId && !p.forwardAddress && (
+                                {p.status === 'Received' && !p.forwardTrackingId && !p.forwardAddress?.city && (
                                   <button className={`${styles.actionBtn} ${styles.forwardBtn}`} style={{marginBottom: '8px'}} onClick={() => setUserForwardModal(p)}>
                                     <FiTruck /> Setup Forward
                                   </button>
                                 )}
-                                {p.status === 'Received' && p.forwardAddress && !p.forwardTrackingId && (
+                                {p.status === 'Received' && p.forwardAddress?.city && !p.forwardTrackingId && (
                                   <span style={{fontSize: '11px', color: '#a855f7', display: 'block', marginBottom: '8px'}}>Address Provided</span>
                                 )}
                                 {p.forwardTrackingId && (
@@ -1214,13 +1234,25 @@ export default function Dashboard() {
                 <input type="text" className={styles.input} placeholder="123 Main St, Apt 4" value={forwardAddress.street} onChange={e => setForwardAddress({...forwardAddress, street: e.target.value})} required />
               </div>
               <div className={styles.formGroup}>
-                <label>City, State, ZIP, Country</label>
-                <input type="text" className={styles.input} placeholder="e.g. London, UK W1D 4AG" value={forwardAddress.city} onChange={e => setForwardAddress({...forwardAddress, city: e.target.value})} required />
+                <label>City</label>
+                <input type="text" className={styles.input} placeholder="e.g. London" value={forwardAddress.city} onChange={e => setForwardAddress({...forwardAddress, city: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>State / Province</label>
+                <input type="text" className={styles.input} placeholder="e.g. NY" value={forwardAddress.state} onChange={e => setForwardAddress({...forwardAddress, state: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>ZIP / Postal Code</label>
+                <input type="text" className={styles.input} placeholder="e.g. W1D 4AG" value={forwardAddress.zip} onChange={e => setForwardAddress({...forwardAddress, zip: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Country</label>
+                <input type="text" className={styles.input} placeholder="e.g. United Kingdom" value={forwardAddress.country} onChange={e => setForwardAddress({...forwardAddress, country: e.target.value})} required />
               </div>
 
               <div className={styles.modalActions}>
-                <button type="button" className={styles.modalCancelBtn} onClick={() => { setUserForwardModal(null); setForwardAddress({name:'', street:'', city:''}); }} disabled={modalLoading}>Cancel</button>
-                <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading || !forwardAddress.name || !forwardAddress.street || !forwardAddress.city}>
+                <button type="button" className={styles.modalCancelBtn} onClick={() => { setUserForwardModal(null); setForwardAddress({name:'', street:'', city:'', state:'', zip:'', country:''}); }} disabled={modalLoading}>Cancel</button>
+                <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading || !forwardAddress.name || !forwardAddress.street || !forwardAddress.city || !forwardAddress.state || !forwardAddress.zip || !forwardAddress.country}>
                   {modalLoading ? 'Saving...' : <><FiTruck /> Save Address</>}
                 </button>
               </div>

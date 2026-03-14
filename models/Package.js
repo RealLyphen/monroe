@@ -11,7 +11,10 @@ const PackageSchema = new mongoose.Schema({
   forwardAddress: {
     name: String,
     street: String,
-    city: String
+    city: String,
+    state: String,
+    zip: String,
+    country: String
   },
   forwardTrackingId: { type: String },
   isConsolidated: { type: Boolean, default: false },

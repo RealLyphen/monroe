@@ -67,7 +67,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      packages: userPackages.map(p => ({ ...p, username: user.username })),
+      packages: userPackages.map(p => ({ ...p, id: p._id.toString(), username: user.username })),
       addresses: activeAddresses,
       notifications: userNotifications,
       wallet: userWallet || { balance: 0, transactions: [] }

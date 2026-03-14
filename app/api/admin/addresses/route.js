@@ -24,6 +24,9 @@ export async function POST(req) {
         name: address.name,
         street: address.street,
         city: address.city,
+        state: address.state || '',
+        zip: address.zip || '',
+        country: address.country || '',
         active: true
       });
       const allAddresses = await Address.find().lean();
@@ -48,7 +51,10 @@ export async function POST(req) {
       await Address.findByIdAndUpdate(id, {
         name: address.name,
         street: address.street,
-        city: address.city
+        city: address.city,
+        state: address.state || '',
+        zip: address.zip || '',
+        country: address.country || ''
       });
       const allAddresses = await Address.find().lean();
       return NextResponse.json({ success: true, addresses: allAddresses });

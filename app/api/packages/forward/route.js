@@ -19,7 +19,10 @@ export async function POST(req) {
           forwardAddress: {
             name: forwardAddress.name.trim(),
             street: forwardAddress.street.trim(),
-            city: forwardAddress.city.trim()
+            city: forwardAddress.city.trim(),
+            state: (forwardAddress.state || '').trim(),
+            zip: (forwardAddress.zip || '').trim(),
+            country: (forwardAddress.country || '').trim()
           }
         }
       },
