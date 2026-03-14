@@ -44,7 +44,7 @@ next-env.d.ts
 /data/packages.json
 /data/users.json
 /data/keys.json
-# /data/addresses.json
+/data/addresses.json
 /data/notifications.json
 /data/wallets.json
 /data/chat.json
