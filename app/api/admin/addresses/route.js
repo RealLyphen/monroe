@@ -43,6 +43,20 @@ export async function POST(req) {
       }
     }
 
+    if (action === 'EDIT') {
+      const idx = addresses.findIndex(a => a.id === address.id);
+      if (idx > -1) {
+        if (!address.name || !address.street || !address.city) {
+          return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+        }
+        addresses[idx] = { ...addresses[idx], ...address };
+        saveJson(ADDRESSES_PATH, addresses);
+        return NextResponse.json({ success: true, addresses });
+      } else {
+        return NextResponse.json({ error: 'Address not found' }, { status: 404 });
+      }
+    }
+
     if (action === 'DELETE') {
       const newAddresses = addresses.filter(a => a.id !== address.id);
       saveJson(ADDRESSES_PATH, newAddresses);

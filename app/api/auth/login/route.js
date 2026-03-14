@@ -10,8 +10,10 @@ const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
 
 function loadKeys() {
   try {
-    return JSON.parse(fs.readFileSync(KEYS_PATH, 'utf-8'));
-  } catch {
+    const fileContent = fs.readFileSync(KEYS_PATH, 'utf-8');
+    return JSON.parse(fileContent);
+  } catch (err) {
+    console.error(`🚨 FATAL LOGIN API ERROR: Could not read keys from ${KEYS_PATH}`, err);
     return { keys: {} };
   }
 }

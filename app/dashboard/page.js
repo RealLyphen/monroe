@@ -36,6 +36,8 @@ export default function Dashboard() {
   const [notifForm, setNotifForm] = useState({ target: 'ALL', title: '', message: '' });
   const [reviewForm, setReviewForm] = useState({ content: '', rating: 5 });
   const [walletForm, setWalletForm] = useState({ username: '', amount: '', type: 'credit', note: '' });
+  const [addressModal, setAddressModal] = useState({ isOpen: false, mode: 'ADD', id: null });
+  const [addressForm, setAddressForm] = useState({ name: '', street: '', city: '' });
 
   // Modal states
   const [receiveModal, setReceiveModal] = useState(null);
@@ -161,6 +163,33 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/');
+  };
+
+  // ── Admin: Address Management ──
+  const handleAddressSubmit = async (e) => {
+    e.preventDefault();
+    setModalLoading(true);
+    
+    const action = addressModal.mode === 'ADD' ? 'ADD' : 'EDIT';
+    const payload = { action, address: { ...addressForm, id: addressModal.id } };
+
+    const res = await fetch('/api/admin/addresses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      await fetchData();
+      setAddressModal({ isOpen: false, mode: 'ADD', id: null });
+      setAddressForm({ name: '', street: '', city: '' });
+    }
+    setModalLoading(false);
+  };
+
+  const openEditAddressModal = (addr) => {
+    setAddressForm({ name: addr.name, street: addr.street, city: addr.city });
+    setAddressModal({ isOpen: true, mode: 'EDIT', id: addr.id });
   };
 
   // ── Package Submit ──
@@ -619,16 +648,27 @@ export default function Dashboard() {
           {/* TAB: Reship Addresses */}
           {activeTab === 'addresses' && (
             <>
-              <div className={styles.glassCard} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div className={styles.glassCard} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                   <h2 className={styles.gradientText} style={{margin: '0 0 8px 0'}}>Available Reship Addresses</h2>
                   <p style={{margin: 0, color: 'rgba(255,255,255,0.6)', fontSize: '14px'}}>
                     {isAdmin ? 'Manage platform reship addresses here.' : 'Ship your packages to any of these addresses. Use exactly as written.'}
                   </p>
                 </div>
-                <div style={{position: 'relative', width: '250px'}}>
-                  <FiSearch style={{position: 'absolute', left: '16px', top: '16px', color: 'rgba(255,255,255,0.4)'}}/>
-                  <input type="text" placeholder="Search city or name..." className={styles.input} style={{paddingLeft: '44px'}} value={searchAddr} onChange={(e) => setSearchAddr(e.target.value)} />
+                <div style={{display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap'}}>
+                  <div style={{position: 'relative', width: '250px'}}>
+                    <FiSearch style={{position: 'absolute', left: '16px', top: '16px', color: 'rgba(255,255,255,0.4)'}}/>
+                    <input type="text" placeholder="Search city or name..." className={styles.input} style={{paddingLeft: '44px'}} value={searchAddr} onChange={(e) => setSearchAddr(e.target.value)} />
+                  </div>
+                  {isAdmin && (
+                    <button 
+                      className={styles.submitBtn} 
+                      style={{padding: '10px 20px', fontSize: '14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px'}}
+                      onClick={() => setAddressModal({ isOpen: true, mode: 'ADD', id: null })}
+                    >
+                      <FiMapPin /> Add New Address
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -649,15 +689,53 @@ export default function Dashboard() {
                         </button>
                       )}
                       {isAdmin && (
-                        <button className={styles.copyBtn} style={{background: 'darkred', color: 'white', borderColor: 'darkred'}} onClick={async () => {
-                          await fetch('/api/admin/addresses', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: 'DELETE', address: addr })});
-                          fetchData();
-                        }}>Delete</button>
+                        <div style={{display: 'flex', gap: '8px', marginTop: '16px'}}>
+                          <button className={styles.copyBtn} style={{flex: 1, background: 'rgba(255,255,255,0.1)', color: 'white'}} onClick={() => openEditAddressModal(addr)}>
+                            Edit
+                          </button>
+                          <button className={styles.copyBtn} style={{flex: 1, background: 'rgba(255, 60, 48, 0.1)', color: '#ff3b30', borderColor: 'rgba(255, 60, 48, 0.1)'}} onClick={async () => {
+                            if (!confirm('Are you sure you want to delete this address?')) return;
+                            await fetch('/api/admin/addresses', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: 'DELETE', address: addr })});
+                            fetchData();
+                          }}>Delete</button>
+                        </div>
                       )}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Address Add/Edit Modal */}
+              {addressModal.isOpen && (
+                <div className={styles.modalOverlay} onClick={() => !modalLoading && setAddressModal({ isOpen: false, mode: 'ADD', id: null })}>
+                  <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                    <button className={styles.closeBtn} onClick={() => setAddressModal({ isOpen: false, mode: 'ADD', id: null })} disabled={modalLoading}><FiX /></button>
+                    <h2>{addressModal.mode === 'ADD' ? 'Add New Address' : 'Edit Address'}</h2>
+                    
+                    <form onSubmit={handleAddressSubmit}>
+                      <div className={styles.formGroup}>
+                        <label>Receiver Name</label>
+                        <input type="text" className={styles.input} placeholder="e.g. John Doe (USE THIS NAME)" required 
+                               value={addressForm.name} onChange={e => setAddressForm({...addressForm, name: e.target.value})} />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Street Address</label>
+                        <input type="text" className={styles.input} placeholder="e.g. 123 Main St Ste 400" required 
+                               value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})} />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>City, State Zip</label>
+                        <input type="text" className={styles.input} placeholder="e.g. New York, NY 10001" required 
+                               value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})} />
+                      </div>
+
+                      <button type="submit" className={styles.submitBtn} disabled={modalLoading} style={{width: '100%', marginTop: '16px'}}>
+                        {modalLoading ? 'Saving...' : 'Save Address'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
