@@ -1,13 +1,9 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const PACKAGES_PATH = path.join(process.cwd(), 'data', 'packages.json');
-const NOTIFS_PATH = path.join(process.cwd(), 'data', 'notifications.json');
-
-function loadJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return []; } }
-function saveJson(p, d) { fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
+import connectDB from '@/lib/db';
+import User from '@/models/User';
+import Package from '@/models/Package';
+import Notification from '@/models/Notification';
 
 export async function PUT(req) {
   try {
@@ -21,56 +17,41 @@ export async function PUT(req) {
     const { id, status, photoUrl, forwardTrackingId, weight, dimensions } = await req.json();
     if (!id || !status) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-    const packages = loadJson(PACKAGES_PATH);
-    const pkgIndex = packages.findIndex(p => p.id === id);
+    await connectDB();
+    const pkg = await Package.findById(id).populate('userId');
+    if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
 
-    if (pkgIndex === -1) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-
-    const pkg = packages[pkgIndex];
     pkg.status = status;
 
-    // Save photo URL when marking as Received
-    if (photoUrl) {
-      pkg.photoUrl = photoUrl;
-    }
+    if (photoUrl) pkg.photoUrl = photoUrl;
+    if (weight !== undefined) pkg.weight = weight;
+    if (dimensions) pkg.dimensions = dimensions;
 
-    // Save weight and dimensions
-    if (weight !== undefined) {
-      pkg.weight = weight;
-    }
-    if (dimensions) {
-      pkg.dimensions = dimensions;
-    }
-
-    // Save forward tracking ID when marking as Forwarded
     if (forwardTrackingId) {
       pkg.forwardTrackingId = forwardTrackingId;
-      pkg.forwardedAt = new Date().toISOString();
+      pkg.forwardedAt = new Date(); // Set forwardedAt when forwardTrackingId is provided
     }
 
-    saveJson(PACKAGES_PATH, packages);
+    await pkg.save();
 
     // Auto-notify the user when status changes
-    const notifications = loadJson(NOTIFS_PATH);
-    let notifMessage = `Your package ${pkg.id} has been marked as ${status}.`;
+    let notifMessage = `Your package ${pkg.trackingId} has been marked as ${status}.`;
     if (status === 'Received' && photoUrl) {
-      notifMessage = `📦 Your package ${pkg.id} has been received at our facility! Photo attached to your package details.`;
+      notifMessage = `📦 Your package reached our facility! Photo attached to details.`;
     }
     if (status === 'Forwarded' && forwardTrackingId) {
-      notifMessage = `🚀 Your package ${pkg.id} has been shipped out! Outgoing tracking: ${forwardTrackingId}`;
+      notifMessage = `🚀 Your package has been shipped! Outgoing tracking: ${forwardTrackingId}`;
     }
     if (status === 'Completed') {
-      notifMessage = `✅ Your package ${pkg.id} order has been completed! Thank you for using Monroe.`;
+      notifMessage = `✅ Your order has been completed! Thank you for using Monroe.`;
     }
 
-    notifications.unshift({
-      id: `NOTIF-${Date.now()}`,
-      target: pkg.username,
+    await Notification.create({
+      target: pkg.userId.username,
       title: 'Package Update',
       message: notifMessage,
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     });
-    saveJson(NOTIFS_PATH, notifications);
 
     return NextResponse.json({ success: true, package: pkg });
   } catch (e) {
@@ -96,8 +77,8 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Need at least 2 packages to consolidate' }, { status: 400 });
       }
 
-      const packages = loadJson(PACKAGES_PATH);
-      const targetPkgs = packages.filter(p => packageIds.includes(p.id));
+      await connectDB();
+      const targetPkgs = await Package.find({ _id: { $in: packageIds } }).populate('userId');
       
       if (targetPkgs.length < 2) {
         return NextResponse.json({ error: 'Packages not found' }, { status: 404 });
@@ -105,44 +86,34 @@ export async function POST(req) {
 
       // Create a consolidated package
       const firstPkg = targetPkgs[0];
-      const consolidatedPkg = {
-        id: `PKG-C${Math.floor(10000 + Math.random() * 90000)}`,
-        userId: firstPkg.userId,
-        username: firstPkg.username,
-        addressId: firstPkg.addressId,
-        addressCity: firstPkg.addressCity,
-        trackingId: consolidatedTrackingId || targetPkgs.map(p => p.trackingId).join(', '),
-        note: `Consolidated from: ${packageIds.join(', ')}`,
+      const newPkg = await Package.create({
+        userId: firstPkg.userId._id,
+        trackingId: consolidatedTrackingId || 'CONSOLIDATED-' + Date.now().toString().slice(-6),
+        note: `Consolidated from: ${targetPkgs.map(p => p.trackingId).join(', ')}`,
         status: 'Received',
         isConsolidated: true,
         sourcePackages: packageIds,
         forwardAddress: firstPkg.forwardAddress || null,
         weight: targetPkgs.reduce((sum, p) => sum + (parseFloat(p.weight) || 0), 0).toString(),
         photoUrl: firstPkg.photoUrl || null,
-        createdAt: new Date().toISOString()
-      };
+        createdAt: new Date()
+      });
 
       // Mark originals as consolidated
-      for (const pkg of targetPkgs) {
-        pkg.status = 'Consolidated';
-        pkg.consolidatedInto = consolidatedPkg.id;
-      }
-
-      packages.unshift(consolidatedPkg);
-      saveJson(PACKAGES_PATH, packages);
+      await Package.updateMany(
+        { _id: { $in: packageIds } },
+        { $set: { status: 'Consolidated', consolidatedInto: newPkg._id.toString() } }
+      );
 
       // Notify user
-      const notifications = loadJson(NOTIFS_PATH);
-      notifications.unshift({
-        id: `NOTIF-${Date.now()}`,
-        target: firstPkg.username,
+      await Notification.create({
+        target: firstPkg.userId.username,
         title: 'Packages Consolidated',
-        message: `📦 ${packageIds.length} packages have been merged into ${consolidatedPkg.id} for a single shipment.`,
-        createdAt: new Date().toISOString()
+        message: `📦 ${packageIds.length} packages have been merged into a single shipment.`,
+        createdAt: new Date()
       });
-      saveJson(NOTIFS_PATH, notifications);
 
-      return NextResponse.json({ success: true, package: consolidatedPkg });
+      return NextResponse.json({ success: true, package: newPkg });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

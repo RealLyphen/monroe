@@ -1,17 +1,10 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const REVIEWS_PATH = path.join(process.cwd(), 'data', 'reviews.json');
-const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
-
-function loadJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return []; } }
-function loadKeys() { try { return JSON.parse(fs.readFileSync(KEYS_PATH, 'utf-8')); } catch { return { keys: {} }; } }
-function saveJson(p, d) { fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
+import connectDB from '@/lib/db';
+import User from '@/models/User';
+import Review from '@/models/Review';
 
 export async function GET() {
-  const reviews = loadJson(REVIEWS_PATH);
+  await connectDB();
+  const reviews = await Review.find().sort({ createdAt: -1 }).lean();
   return NextResponse.json({ reviews });
 }
 
@@ -24,14 +17,16 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const keysData = loadKeys();
-    const user = keysData.keys[session.value];
-    
-    // Admin posts as Owner
-    const username = session.value === 'ADMIN-01' ? 'Admin' : user?.username;
+    await connectDB();
+    const isAdmin = session.value === 'ADMIN-01';
+    let username = 'Admin';
+    let userId = null;
 
-    if (!username) {
-       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isAdmin) {
+      const user = await User.findOne({ key: session.value });
+      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      username = user.username;
+      userId = user._id;
     }
 
     const { content, rating } = await req.json();
@@ -40,17 +35,13 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing content or rating' }, { status: 400 });
     }
 
-    const reviews = loadJson(REVIEWS_PATH);
-    const newReview = {
-      id: `REV-${Date.now()}`,
+    const newReview = await Review.create({
+      userId: userId,
       username: username,
       content: content.trim(),
       rating: rating,
-      date: new Date().toISOString()
-    };
-
-    reviews.unshift(newReview);
-    saveJson(REVIEWS_PATH, reviews);
+      createdAt: new Date()
+    });
 
     return NextResponse.json({ success: true, review: newReview });
   } catch (e) {

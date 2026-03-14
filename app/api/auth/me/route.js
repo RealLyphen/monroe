@@ -1,17 +1,5 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
-
-function loadKeys() {
-  try {
-    return JSON.parse(fs.readFileSync(KEYS_PATH, 'utf-8'));
-  } catch {
-    return { keys: {} };
-  }
-}
+import connectDB from '@/lib/db';
+import User from '@/models/User';
 
 export async function GET() {
   try {
@@ -32,21 +20,23 @@ export async function GET() {
       });
     }
 
-    const data = loadKeys();
-    const userInfo = data.keys[session.value];
+    await connectDB();
+    const user = await User.findOne({ key: session.value });
 
-    if (!userInfo) {
+    if (!user) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
     return NextResponse.json({
       authenticated: true,
       user: {
-        username: userInfo.username,
-        telegramId: userInfo.telegramId,
+        username: user.username,
+        telegramId: user.telegramId,
+        avatarUrl: user.avatarUrl,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error('Me error:', err);
     return NextResponse.json({ authenticated: false }, { status: 500 });
   }
 }

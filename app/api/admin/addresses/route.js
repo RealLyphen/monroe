@@ -1,12 +1,5 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const ADDRESSES_PATH = path.join(process.cwd(), 'data', 'addresses.json');
-
-function loadJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return []; } }
-function saveJson(p, d) { fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
+import connectDB from '@/lib/db';
+import Address from '@/models/Address';
 
 export async function POST(req) {
   try {
@@ -19,48 +12,51 @@ export async function POST(req) {
 
     const { action, address } = await req.json();
 
-    const addresses = loadJson(ADDRESSES_PATH);
+    await connectDB();
 
     if (action === 'ADD') {
       if (!address.name || !address.street || !address.city) {
         return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
       }
-      addresses.push({
-        id: `ADR-${Math.floor(100+Math.random()*900)}`,
-        ...address,
+      await Address.create({
+        name: address.name,
+        street: address.street,
+        city: address.city,
         active: true
       });
-      saveJson(ADDRESSES_PATH, addresses);
-      return NextResponse.json({ success: true, addresses });
+      const allAddresses = await Address.find().lean();
+      return NextResponse.json({ success: true, addresses: allAddresses });
     }
 
     if (action === 'TOGGLE') {
-      const idx = addresses.findIndex(a => a.id === address.id);
-      if (idx > -1) {
-        addresses[idx].active = !addresses[idx].active;
-        saveJson(ADDRESSES_PATH, addresses);
-        return NextResponse.json({ success: true, addresses });
+      const addr = await Address.findById(address._id || address.id);
+      if (addr) {
+        addr.active = !addr.active;
+        await addr.save();
+        const allAddresses = await Address.find().lean();
+        return NextResponse.json({ success: true, addresses: allAddresses });
       }
     }
 
     if (action === 'EDIT') {
-      const idx = addresses.findIndex(a => a.id === address.id);
-      if (idx > -1) {
-        if (!address.name || !address.street || !address.city) {
-          return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-        }
-        addresses[idx] = { ...addresses[idx], ...address };
-        saveJson(ADDRESSES_PATH, addresses);
-        return NextResponse.json({ success: true, addresses });
-      } else {
-        return NextResponse.json({ error: 'Address not found' }, { status: 404 });
+      const id = address._id || address.id;
+      if (!address.name || !address.street || !address.city) {
+        return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
       }
+      await Address.findByIdAndUpdate(id, {
+        name: address.name,
+        street: address.street,
+        city: address.city
+      });
+      const allAddresses = await Address.find().lean();
+      return NextResponse.json({ success: true, addresses: allAddresses });
     }
 
     if (action === 'DELETE') {
-      const newAddresses = addresses.filter(a => a.id !== address.id);
-      saveJson(ADDRESSES_PATH, newAddresses);
-      return NextResponse.json({ success: true, addresses: newAddresses });
+      const id = address._id || address.id;
+      await Address.findByIdAndDelete(id);
+      const allAddresses = await Address.find().lean();
+      return NextResponse.json({ success: true, addresses: allAddresses });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

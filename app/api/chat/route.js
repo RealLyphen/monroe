@@ -1,15 +1,9 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import connectDB from '@/lib/db';
+import User from '@/models/User';
+import Chat from '@/models/Chat';
+import Package from '@/models/Package';
 
-const CHAT_PATH = path.join(process.cwd(), 'data', 'chat.json');
-const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
-
-function loadJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return {}; } }
-function saveJson(p, d) { fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
-
-// GET /api/chat?packageId=PKG-123
+// GET /api/chat?packageId=123 (Mongo _id)
 export async function GET(req) {
   try {
     const cookieStore = await cookies();
@@ -20,8 +14,9 @@ export async function GET(req) {
     const packageId = searchParams.get('packageId');
     if (!packageId) return NextResponse.json({ error: 'Missing packageId' }, { status: 400 });
 
-    const chatData = loadJson(CHAT_PATH);
-    const messages = chatData[packageId] || [];
+    await connectDB();
+    const chat = await Chat.findOne({ packageId }).lean();
+    const messages = chat ? chat.messages : [];
 
     return NextResponse.json({ messages });
   } catch (e) {
@@ -41,11 +36,11 @@ export async function POST(req) {
     let senderName = 'Admin';
     let senderRole = 'admin';
 
+    await connectDB();
     if (!isAdmin) {
-      const keysData = loadJson(KEYS_PATH);
-      const userInfo = keysData.keys?.[session.value];
-      if (!userInfo) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      senderName = userInfo.username;
+      const user = await User.findOne({ key: session.value });
+      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      senderName = user.username;
       senderRole = 'user';
     }
 
@@ -54,22 +49,23 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const chatData = loadJson(CHAT_PATH);
-    if (!chatData[packageId]) chatData[packageId] = [];
+    let chat = await Chat.findOne({ packageId });
+    if (!chat) {
+      chat = new Chat({ packageId, messages: [] });
+    }
 
     const newMsg = {
-      id: `MSG-${Date.now()}`,
-      sender: senderName,
+      sender: senderRole, // Model uses sender as 'user'|'admin'
       role: senderRole,
       message: message || '',
       imageUrl: imageUrl || null,
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     };
 
-    chatData[packageId].push(newMsg);
-    saveJson(CHAT_PATH, chatData);
+    chat.messages.push(newMsg);
+    await chat.save();
 
-    return NextResponse.json({ success: true, message: newMsg });
+    return NextResponse.json({ success: true, message: { ...newMsg, sender: senderName } });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

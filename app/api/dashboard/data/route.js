@@ -1,18 +1,9 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-function loadJson(filename) {
-  try {
-    const filePath = path.join(process.cwd(), 'data', filename);
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch {
-    if (filename === 'keys.json') return { keys: {} };
-    if (filename === 'wallets.json') return {};
-    return [];
-  }
-}
+import connectDB from '@/lib/db';
+import User from '@/models/User';
+import Package from '@/models/Package';
+import Address from '@/models/Address';
+import Notification from '@/models/Notification';
+import Wallet from '@/models/Wallet';
 
 export async function GET() {
   try {
@@ -23,43 +14,61 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    await connectDB();
     const isAdmin = session.value === 'ADMIN-01';
-    const allPackages = loadJson('packages.json');
-    const allAddresses = loadJson('addresses.json');
-    const allNotifications = loadJson('notifications.json');
-    const keysData = loadJson('keys.json');
-    const walletsData = loadJson('wallets.json');
 
-    // Admin sees everything (but only ALL or ADMIN notifications in their own panel usually, 
-    // though the prompt says owner currently sees user notifications. So we filter `allNotifications` 
-    // directly in the API for what the admin receives in `dashboard/data`).
     if (isAdmin) {
+      const [allPackages, allAddresses, allUsers, allNotifications, allWallets] = await Promise.all([
+        Package.find().populate('userId', 'username').lean(),
+        Address.find().lean(),
+        User.find().lean(),
+        Notification.find({ target: { $in: ['ALL', 'ADMIN'] } }).lean(),
+        Wallet.find().populate('userId', 'username').lean()
+      ]);
+
+      // Map packages to match expected frontend structure (injecting username)
+      const mappedPackages = allPackages.map(p => ({
+        ...p,
+        id: p._id.toString(), // For compatibility with frontend if it uses .id
+        username: p.userId?.username || 'Unknown'
+      }));
+
+      // Map wallets to { username: { balance, transactions } }
+      const walletsMap = {};
+      allWallets.forEach(w => {
+        if (w.userId && w.userId.username) {
+          walletsMap[w.userId.username] = { balance: w.balance, transactions: w.transactions };
+        }
+      });
+
       return NextResponse.json({
-        packages: allPackages,
+        packages: mappedPackages,
         addresses: allAddresses,
-        users: Object.values(keysData.keys || {}),
-        notifications: allNotifications.filter(n => n.target === 'ALL' || n.target === 'ADMIN'),
-        wallets: walletsData
+        users: allUsers,
+        notifications: allNotifications,
+        wallets: walletsMap
       });
     }
 
     // Normal user sees only their stuff
-    const userSession = keysData.keys[session.value];
-    if (!userSession) {
+    const user = await User.findOne({ key: session.value });
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const username = userSession.username;
-    const userPackages = allPackages.filter(p => p.username === username);
-    const userNotifications = allNotifications.filter(n => n.target === 'ALL' || n.target === username);
-    const activeAddresses = allAddresses.filter(a => a.active !== false);
-    const userWallet = walletsData[username] || { balance: 0, transactions: [] };
+    const username = user.username;
+    const [userPackages, activeAddresses, userNotifications, userWallet] = await Promise.all([
+      Package.find({ userId: user._id }).lean(),
+      Address.find({ active: true }).lean(),
+      Notification.find({ target: { $in: ['ALL', username] } }).sort({ createdAt: -1 }).lean(),
+      Wallet.findOne({ userId: user._id }).lean()
+    ]);
 
     return NextResponse.json({
-      packages: userPackages,
+      packages: userPackages.map(p => ({ ...p, username: user.username })),
       addresses: activeAddresses,
       notifications: userNotifications,
-      wallet: userWallet
+      wallet: userWallet || { balance: 0, transactions: [] }
     });
 
   } catch (error) {

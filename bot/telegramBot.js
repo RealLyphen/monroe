@@ -9,46 +9,32 @@
  * Keys are stored in data/keys.json.
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 // Load environment variables from .env file
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/monroe';
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
 const POLL_INTERVAL = 1500; // ms
+
+// Define User Schema for the bot
+const UserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  telegramId: { type: String, sparse: true },
+  key: { type: String, required: true, unique: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // Ensure token exists before starting
 if (!BOT_TOKEN || BOT_TOKEN === 'your_telegram_bot_token_here') {
   console.error('\n❌ ERROR: Missing or invalid TELEGRAM_BOT_TOKEN in .env file!');
-  console.error('Please create a bot with @BotFather on Telegram, get the HTTP API Token,');
-  console.error('and add it to your .env file as: TELEGRAM_BOT_TOKEN=your_token_here\n');
   process.exit(1);
 }
 
 // ── Helpers ──────────────────────────────────────────────
-
-function loadKeys() {
-  try {
-    return JSON.parse(fs.readFileSync(KEYS_PATH, 'utf-8'));
-  } catch {
-    return { keys: {} };
-  }
-}
-
-function saveKeys(data) {
-  fs.writeFileSync(KEYS_PATH, JSON.stringify(data, null, 2));
-}
-
-function findKeyByTelegramId(data, tgId) {
-  for (const [key, info] of Object.entries(data.keys)) {
-    if (info.telegramId === tgId) return key;
-  }
-  return null;
-}
 
 async function tgApi(method, body = {}) {
   const res = await fetch(`${API_BASE}/${method}`, {
@@ -74,20 +60,36 @@ async function poll() {
       if (!msg || !msg.text) continue;
 
       const chatId = msg.chat.id;
-      const tgId = msg.from.id;
-      const username = msg.from.username || msg.from.first_name || 'user';
+      const tgId = msg.from.id.toString();
+      const tgUsername = msg.from.username || msg.from.first_name || 'user';
       const text = msg.text.trim();
 
       if (text === '/start' || text === '/generate') {
-        const data = loadKeys();
-        let existingKey = findKeyByTelegramId(data, tgId);
+        const photosResp = await tgApi('getUserProfilePhotos', { user_id: tgId, limit: 1 });
+        let avatarUrl = '';
+        if (photosResp.ok && photosResp.result.total_count > 0) {
+          const photoArray = photosResp.result.photos[0];
+          const fileId = photoArray[photoArray.length - 1].file_id; // get best quality
+          const fileResp = await tgApi('getFile', { file_id: fileId });
+          if (fileResp.ok) {
+            avatarUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileResp.result.file_path}`;
+          }
+        }
 
-        if (existingKey) {
+        let user = await User.findOne({ telegramId: tgId });
+
+        if (user) {
+          // Update avatarUrl if changed
+          if (avatarUrl && user.avatarUrl !== avatarUrl) {
+            user.avatarUrl = avatarUrl;
+            await user.save();
+          }
+
           await tgApi('sendMessage', {
             chat_id: chatId,
             text:
               `🔑 *Your Monroe Login Key*\n\n` +
-              `\`${existingKey}\`\n\n` +
+              `\`${user.key}\`\n\n` +
               `This key is permanently tied to your account. ` +
               `Paste it on the Monroe website to sign in.\n\n` +
               `_Your key never changes — use it anytime._`,
@@ -95,12 +97,21 @@ async function poll() {
           });
         } else {
           const newKey = crypto.randomUUID();
-          data.keys[newKey] = {
+          // To ensure unique usernames, if the username exists, we append a random number
+          let finalUsername = tgUsername;
+          const userExists = await User.findOne({ username: finalUsername });
+          if (userExists) {
+            finalUsername = `${tgUsername}_${Math.floor(Math.random() * 999)}`;
+          }
+
+          user = await User.create({
             telegramId: tgId,
-            username,
-            createdAt: new Date().toISOString(),
-          };
-          saveKeys(data);
+            username: finalUsername,
+            key: newKey,
+            avatarUrl,
+            createdAt: new Date()
+          });
+
           await tgApi('sendMessage', {
             chat_id: chatId,
             text:
@@ -129,6 +140,15 @@ async function poll() {
 
 async function main() {
   console.log('🤖 Monroe Telegram Bot initializing...');
+  
+  try {
+    console.log('🔗 Connecting to MongoDB...');
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ MongoDB connected.');
+  } catch (err) {
+    console.error('❌ MongoDB Connection Error:', err.message);
+    process.exit(1);
+  }
   
   // Test the token
   try {

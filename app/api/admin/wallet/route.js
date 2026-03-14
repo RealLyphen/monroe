@@ -1,12 +1,6 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const WALLETS_PATH = path.join(process.cwd(), 'data', 'wallets.json');
-
-function loadJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return {}; } }
-function saveJson(p, d) { fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
+import connectDB from '@/lib/db';
+import User from '@/models/User';
+import Wallet from '@/models/Wallet';
 
 // GET /api/admin/wallet?username=xxx (admin gets any, user gets own)
 export async function GET(req) {
@@ -15,26 +9,35 @@ export async function GET(req) {
     const session = cookieStore.get('monroe_session');
     if (!session || !session.value) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const wallets = loadJson(WALLETS_PATH);
+    await connectDB();
     const isAdmin = session.value === 'ADMIN-01';
 
     if (isAdmin) {
       const { searchParams } = new URL(req.url);
       const username = searchParams.get('username');
+      
       if (username) {
-        return NextResponse.json({ wallet: wallets[username] || { balance: 0, transactions: [] } });
+        const user = await User.findOne({ username });
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        const wallet = await Wallet.findOne({ userId: user._id }).lean();
+        return NextResponse.json({ wallet: wallet || { balance: 0, transactions: [] } });
       }
-      return NextResponse.json({ wallets });
+
+      // If no username, return all wallets mapped by username
+      const allWallets = await Wallet.find().populate('userId', 'username').lean();
+      const walletsMap = {};
+      allWallets.forEach(w => {
+        if (w.userId?.username) walletsMap[w.userId.username] = { balance: w.balance, transactions: w.transactions };
+      });
+      return NextResponse.json({ wallets: walletsMap });
     }
 
     // Normal user — get their own wallet
-    const keysPath = path.join(process.cwd(), 'data', 'keys.json');
-    const keysData = JSON.parse(fs.readFileSync(keysPath, 'utf-8'));
-    const userInfo = keysData.keys?.[session.value];
-    if (!userInfo) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await User.findOne({ key: session.value });
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const userWallet = wallets[userInfo.username] || { balance: 0, transactions: [] };
-    return NextResponse.json({ wallet: userWallet });
+    const wallet = await Wallet.findOne({ userId: user._id }).lean();
+    return NextResponse.json({ wallet: wallet || { balance: 0, transactions: [] } });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -55,26 +58,32 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const wallets = loadJson(WALLETS_PATH);
-    if (!wallets[username]) wallets[username] = { balance: 0, transactions: [] };
+    await connectDB();
+    const user = await User.findOne({ username });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    let wallet = await Wallet.findOne({ userId: user._id });
+    if (!wallet) {
+      wallet = new Wallet({ userId: user._id, balance: 0, transactions: [] });
+    }
 
     const numAmount = parseFloat(amount);
     if (type === 'credit') {
-      wallets[username].balance += numAmount;
+      wallet.balance += numAmount;
     } else if (type === 'debit') {
-      wallets[username].balance -= numAmount;
+      wallet.balance -= numAmount;
     }
 
-    wallets[username].transactions.unshift({
+    wallet.transactions.unshift({
       id: `TXN-${Date.now()}`,
       type,
       amount: numAmount,
       note: note || '',
-      createdAt: new Date().toISOString()
+      createdAt: new Date()
     });
 
-    saveJson(WALLETS_PATH, wallets);
-    return NextResponse.json({ success: true, wallet: wallets[username] });
+    await wallet.save();
+    return NextResponse.json({ success: true, wallet });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

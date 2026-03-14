@@ -64,6 +64,7 @@ export default function Dashboard() {
   // Consolidation states
   const [consolidateMode, setConsolidateMode] = useState(false);
   const [selectedForConsolidate, setSelectedForConsolidate] = useState([]);
+  const [adminPackageFilter, setAdminPackageFilter] = useState('all');
 
   const fetchData = async () => {
     try {
@@ -461,6 +462,11 @@ export default function Dashboard() {
 
   // Filtered packages
   const filteredPackages = packages.filter(p => {
+    if (isAdmin && activeTab === 'packages') {
+      if (adminPackageFilter === 'pending' && p.status !== 'Pending') return false;
+      if (adminPackageFilter === 'forwarding' && (p.status !== 'Received' || !p.forwardAddress || p.forwardTrackingId)) return false;
+      if (adminPackageFilter === 'completed' && p.status !== 'Completed') return false;
+    }
     if (!searchParcels) return true;
     const q = searchParcels.toLowerCase();
     return (
@@ -579,7 +585,11 @@ export default function Dashboard() {
               )}
             </div>
             <div className={styles.profileBadge}>
-              <div className={styles.avatar}>{user.username.charAt(0)}</div>
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className={styles.avatar} style={{ objectFit: 'cover' }} />
+              ) : (
+                <div className={styles.avatar}>{user.username.charAt(0)}</div>
+              )}
               <span>{user.username}</span>
             </div>
           </div>
@@ -604,7 +614,7 @@ export default function Dashboard() {
               <h2 style={{fontSize: '18px', marginBottom: '16px', color: '#fff'}}>Account Overview</h2>
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
-                  <h3>Your Packages</h3>
+                  <h3>{isAdmin ? 'Total Packages' : 'Your Packages'}</h3>
                   <p className={styles.value}>{stats.total}</p>
                 </div>
                 <div className={`${styles.statCard} ${styles.highlight}`}>
@@ -620,6 +630,29 @@ export default function Dashboard() {
                   <p className={styles.value} style={{color: '#6495ed'}}>{stats.forwarded}</p>
                 </div>
               </div>
+
+              {/* Platform Analytics */}
+              {isAdmin && (
+                <div className={styles.glassCard} style={{marginTop: '24px'}}>
+                  <h2 className={styles.gradientText} style={{margin: '0 0 16px', fontSize: '20px'}}>Platform Analytics</h2>
+                  <div style={{display: 'flex', gap: '24px', flexWrap: 'wrap'}}>
+                    <div style={{flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px'}}>
+                      <h4 style={{margin: '0 0 8px', color: 'rgba(255,255,255,0.6)'}}>Reshipping Success Rate</h4>
+                      <div style={{width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden'}}>
+                        <div style={{width: `${Math.max(1, (packages.filter(p => p.status === 'Completed').length / (stats.total || 1)) * 100)}%`, height: '100%', background: '#32cd32'}}></div>
+                      </div>
+                      <p style={{marginTop: '8px', fontSize: '14px', color: '#32cd32'}}>{((packages.filter(p => p.status === 'Completed').length / (stats.total || 1)) * 100).toFixed(1)}% Completed</p>
+                    </div>
+                    <div style={{flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px'}}>
+                      <h4 style={{margin: '0 0 8px', color: 'rgba(255,255,255,0.6)'}}>Active Forward Requests</h4>
+                      <p style={{fontSize: '24px', margin: 0, fontWeight: 600, color: '#f5c518'}}>
+                        {packages.filter(p => p.status === 'Received' && p.forwardAddress && !p.forwardTrackingId).length}
+                      </p>
+                      <p style={{margin: '4px 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.4)'}}>Awaiting tracking updates</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* User wallet transactions on dashboard */}
               {!isAdmin && wallet.transactions?.length > 0 && (
@@ -723,9 +756,9 @@ export default function Dashboard() {
                         <input type="text" className={styles.input} placeholder="e.g. 123 Main St Ste 400" required 
                                value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})} />
                       </div>
-                      <div className={styles.formGroup}>
-                        <label>City, State Zip</label>
-                        <input type="text" className={styles.input} placeholder="e.g. New York, NY 10001" required 
+                      <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
+                        <label>City, State, ZIP, Country</label>
+                        <input type="text" className={styles.input} placeholder="e.g. London, UK W1D 4AG" 
                                value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})} />
                       </div>
 
@@ -762,20 +795,6 @@ export default function Dashboard() {
                     <input type="text" className={styles.input} placeholder="e.g. 1Z9999999999999999" value={formState.trackingId} onChange={e => setFormState({...formState, trackingId: e.target.value})} required />
                   </div>
 
-                  {/* Weight & Dimensions */}
-                  <div className={styles.inlineFormRow}>
-                    <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
-                      <label>Weight (lbs)</label>
-                      <input type="text" className={styles.input} placeholder="e.g. 2.5" value={formState.weight} onChange={e => setFormState({...formState, weight: e.target.value})} />
-                    </div>
-                    <div className={styles.formGroup} style={{flex: 1, marginBottom: 0}}>
-                      <label>Dimensions (L×W×H)</label>
-                      <input type="text" className={styles.input} placeholder="e.g. 12×8×6" value={formState.dimensions} onChange={e => setFormState({...formState, dimensions: e.target.value})} />
-                    </div>
-                  </div>
-
-
-
                   <div className={styles.formGroup}>
                     <label>Notes (Optional)</label>
                     <textarea className={styles.textarea} placeholder="Special instructions..." value={formState.note} onChange={e => setFormState({...formState, note: e.target.value})}></textarea>
@@ -789,22 +808,34 @@ export default function Dashboard() {
           {/* TAB: My Packages / Manage Parcels */}
           {activeTab === 'packages' && (
             <div className={styles.glassCard}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px'}}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
-                  <h2 className={styles.gradientText} style={{margin: 0}}>{isAdmin ? 'Manage Global Parcels' : 'My Packages'}</h2>
-                  {/* Consolidate Button - Now available to all users */}
-                  <button 
-                    className={`${styles.actionBtn} ${styles.consolidateBtn}`} 
-                    style={{padding: '8px 16px'}}
-                    onClick={() => { setConsolidateMode(!consolidateMode); setSelectedForConsolidate([]); }}
-                  >
-                    <FiLayers /> {consolidateMode ? 'Cancel' : 'Consolidate'}
-                  </button>
-                  
-                  {consolidateMode && selectedForConsolidate.length >= 2 && (
-                    <button className={styles.submitBtn} style={{padding: '8px 20px', fontSize: '13px'}} onClick={handleConsolidate} disabled={modalLoading}>
-                      Merge {selectedForConsolidate.length} Packages
-                    </button>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                    <h2 className={styles.gradientText} style={{margin: 0}}>
+                      {isAdmin ? 'Manage Parcels' : 'Your Packages'}
+                    </h2>
+                    {isAdmin && (
+                      <button 
+                        className={styles.submitBtn} 
+                        style={{padding: '8px 16px', fontSize: '13px', background: consolidateMode ? '#32cd32' : 'rgba(168, 85, 247, 0.2)', color: consolidateMode ? '#000' : '#a855f7'}} 
+                        onClick={() => setConsolidateMode(!consolidateMode)}
+                      >
+                        <FiLayers /> {consolidateMode ? 'Cancel' : 'Consolidate'}
+                      </button>
+                    )}
+                    {consolidateMode && selectedForConsolidate.length >= 2 && (
+                      <button className={styles.submitBtn} style={{padding: '8px 20px', fontSize: '13px'}} onClick={handleConsolidate} disabled={modalLoading}>
+                        Merge {selectedForConsolidate.length} Packages
+                      </button>
+                    )}
+                  </div>
+                  {isAdmin && (
+                    <div style={{display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px'}}>
+                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'all' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'all' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('all')}>All</button>
+                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'pending' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'pending' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('pending')}>Pending ({packages.filter(p => p.status === 'Pending').length})</button>
+                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'forwarding' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'forwarding' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('forwarding')}>Forward Requests ({packages.filter(p => p.status === 'Received' && p.forwardAddress && !p.forwardTrackingId).length})</button>
+                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'completed' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'completed' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('completed')}>Completed</button>
+                    </div>
                   )}
                 </div>
                 <div className={styles.searchBar}>
@@ -965,7 +996,11 @@ export default function Dashboard() {
                   return (
                     <div key={i} className={styles.userCard}>
                       <div className={styles.userCardHeader}>
-                        <div className={styles.userAvatar}>{u.username.charAt(0).toUpperCase()}</div>
+                        {u.avatarUrl ? (
+                          <img src={u.avatarUrl} alt="Avatar" className={styles.userAvatar} style={{ objectFit: 'cover' }} />
+                        ) : (
+                          <div className={styles.userAvatar}>{u.username.charAt(0).toUpperCase()}</div>
+                        )}
                         <div>
                           <p className={styles.userName}>{u.username}</p>
                           <p className={styles.userTgId}>ID: {u.telegramId}</p>
@@ -1179,8 +1214,8 @@ export default function Dashboard() {
                 <input type="text" className={styles.input} placeholder="123 Main St, Apt 4" value={forwardAddress.street} onChange={e => setForwardAddress({...forwardAddress, street: e.target.value})} required />
               </div>
               <div className={styles.formGroup}>
-                <label>City, State, ZIP</label>
-                <input type="text" className={styles.input} placeholder="Los Angeles, CA 90001" value={forwardAddress.city} onChange={e => setForwardAddress({...forwardAddress, city: e.target.value})} required />
+                <label>City, State, ZIP, Country</label>
+                <input type="text" className={styles.input} placeholder="e.g. London, UK W1D 4AG" value={forwardAddress.city} onChange={e => setForwardAddress({...forwardAddress, city: e.target.value})} required />
               </div>
 
               <div className={styles.modalActions}>

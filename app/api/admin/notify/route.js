@@ -1,12 +1,5 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const NOTIFS_PATH = path.join(process.cwd(), 'data', 'notifications.json');
-
-function loadJson(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return []; } }
-function saveJson(p, d) { fs.writeFileSync(p, JSON.stringify(d, null, 2)); }
+import connectDB from '@/lib/db';
+import Notification from '@/models/Notification';
 
 export async function POST(req) {
   try {
@@ -23,17 +16,13 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const notifications = loadJson(NOTIFS_PATH);
-    const newNotif = {
-      id: `NOTIF-${Date.now()}`,
+    await connectDB();
+    const newNotif = await Notification.create({
       target: target, // 'ALL' or specific username
       title: title.trim(),
       message: message.trim(),
-      createdAt: new Date().toISOString()
-    };
-
-    notifications.unshift(newNotif);
-    saveJson(NOTIFS_PATH, notifications);
+      createdAt: new Date()
+    });
 
     return NextResponse.json({ success: true, notification: newNotif });
   } catch (e) {

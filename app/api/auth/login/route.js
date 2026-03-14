@@ -1,22 +1,8 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import connectDB from '@/lib/db';
+import User from '@/models/User';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
-
-function loadKeys() {
-  try {
-    const fileContent = fs.readFileSync(KEYS_PATH, 'utf-8');
-    return JSON.parse(fileContent);
-  } catch (err) {
-    console.error(`🚨 FATAL LOGIN API ERROR: Could not read keys from ${KEYS_PATH}`, err);
-    return { keys: {} };
-  }
-}
 
 export async function POST(request) {
   try {
@@ -28,6 +14,7 @@ export async function POST(request) {
 
     const trimmedKey = key.trim();
 
+    // Special case for Static Admin Key
     if (trimmedKey === 'ADMIN-01') {
       const cookieStore = await cookies();
       cookieStore.set('monroe_session', 'ADMIN-01', {
@@ -47,10 +34,10 @@ export async function POST(request) {
       });
     }
 
-    const data = loadKeys();
-    const userInfo = data.keys[trimmedKey];
+    await connectDB();
+    const user = await User.findOne({ key: trimmedKey });
 
-    if (!userInfo) {
+    if (!user) {
       return NextResponse.json({ error: 'Invalid key' }, { status: 401 });
     }
 
@@ -67,11 +54,12 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       user: {
-        username: userInfo.username,
-        telegramId: userInfo.telegramId,
+        username: user.username,
+        telegramId: user.telegramId,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error('Login error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

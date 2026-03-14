@@ -1,18 +1,5 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-
-const KEYS_PATH = path.join(process.cwd(), 'data', 'keys.json');
-
-function loadKeys() {
-  try {
-    return JSON.parse(fs.readFileSync(KEYS_PATH, 'utf-8'));
-  } catch {
-    return { keys: {} };
-  }
-}
+import connectDB from '@/lib/db';
+import User from '@/models/User';
 
 export async function POST(req) {
   try {
@@ -20,13 +7,13 @@ export async function POST(req) {
     const session = cookieStore.get('monroe_session');
 
     if (!session || !session.value || session.value === 'ADMIN-01') {
-      return NextResponse.json({ error: 'Unauthorized or invalid user type for top-up' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized or invalid user type' }, { status: 401 });
     }
 
-    const data = loadKeys();
-    const userInfo = data.keys[session.value];
+    await connectDB();
+    const user = await User.findOne({ key: session.value });
 
-    if (!userInfo) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -42,7 +29,7 @@ export async function POST(req) {
     const PAYMENT_KEY = process.env.CRYPTOMUS_PAYMENT_KEY || 'dummy_key';
 
     // Build Payload for Cryptomus
-    const orderId = `TOPUP-${userInfo.username}-${Date.now()}`;
+    const orderId = `TOPUP-${user.username}-${Date.now()}`;
     const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`;
     const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/cryptomus`;
 
