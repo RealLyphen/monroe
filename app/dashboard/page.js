@@ -638,9 +638,13 @@ export default function Dashboard() {
   // Filtered packages
   const filteredPackages = packages.filter(p => {
     if (isAdmin && activeTab === 'packages') {
+      const isConsolidatedOrRequested = p.status === 'Consolidated' || p.status === 'Consolidation Requested';
+
+      if (adminPackageFilter === 'all' && isConsolidatedOrRequested) return false;
       if (adminPackageFilter === 'pending' && p.status !== 'Pending') return false;
-      if (adminPackageFilter === 'forwarding' && (p.status !== 'Received' || !p.forwardAddress?.city || p.forwardTrackingId)) return false;
+      if (adminPackageFilter === 'forwarding' && (p.status !== 'Received' || !p.forwardAddress?.city || p.forwardTrackingId || isConsolidatedOrRequested)) return false;
       if (adminPackageFilter === 'completed' && p.status !== 'Completed') return false;
+      if (adminPackageFilter === 'consolidated' && !isConsolidatedOrRequested) return false;
     }
     if (!searchParcels) return true;
     const q = searchParcels.toLowerCase();
@@ -1109,6 +1113,7 @@ export default function Dashboard() {
                         {isAdmin && <th>Username</th>}
                         <th>Tracking ID</th>
                         <th>Weight</th>
+                        {isAdmin && <th>Origin Address</th>}
                         {isAdmin && <th>Forward To</th>}
                         <th>Status</th>
                         <th>{isAdmin ? 'Action' : 'Details'}</th>
@@ -1143,6 +1148,18 @@ export default function Dashboard() {
                           {isAdmin && <td>{p.username}</td>}
                           <td style={{fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)', fontSize: '13px'}}>{p.trackingId}</td>
                           <td style={{fontSize: '13px', color: 'rgba(255,255,255,0.5)'}}>{p.weight ? `${p.weight} lbs` : '—'}</td>
+                          {isAdmin && (
+                            <td>
+                              {p.originAddress ? (
+                                <div style={{fontSize: '12px', lineHeight: 1.5}}>
+                                  <div style={{color: '#fff', fontWeight: 500}}>{p.originAddress.name}</div>
+                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.street}</div>
+                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.city}{p.originAddress.state ? `, ${p.originAddress.state}` : ''} {p.originAddress.zip}</div>
+                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.country}</div>
+                                </div>
+                              ) : <span style={{fontSize: '12px', color: 'rgba(255,255,255,0.3)'}}>Not provided</span>}
+                            </td>
+                          )}
                           {isAdmin && (
                             <td>
                               {p.forwardAddress ? (

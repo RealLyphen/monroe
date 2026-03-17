@@ -15,15 +15,31 @@ export async function POST(req) {
     const user = await User.findOne({ key: session.value });
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { addressCity, trackingId, note, forwardAddress, weight, dimensions } = await req.json();
+    const { addressId, trackingId, note, forwardAddress, weight, dimensions } = await req.json();
 
-    if (!addressCity || !trackingId) {
+    if (!addressId || !trackingId) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    }
+
+    const Address = (await import('@/models/Address')).default;
+    const originAddress = await Address.findById(addressId);
+    
+    if (!originAddress) {
+       return NextResponse.json({ error: 'Invalid origin address' }, { status: 400 });
     }
 
     const newPackageData = {
       userId: user._id,
       trackingId: trackingId.trim(),
+      addressCity: originAddress.city,
+      originAddress: {
+        name: originAddress.name || '',
+        street: originAddress.street || '',
+        city: originAddress.city || '',
+        state: originAddress.state || '',
+        zip: originAddress.zip || '',
+        country: originAddress.country || ''
+      },
       note: note ? note.trim() : '',
       weight: weight || '',
       dimensions: dimensions || '',

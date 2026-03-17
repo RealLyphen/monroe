@@ -8,6 +8,15 @@ const PackageSchema = new mongoose.Schema({
   dimensions: { type: String },
   note: { type: String },
   photoUrl: { type: String },
+  addressCity: { type: String },
+  originAddress: {
+    name: String,
+    street: String,
+    city: String,
+    state: String,
+    zip: String,
+    country: String
+  },
   forwardAddress: {
     name: String,
     street: String,
