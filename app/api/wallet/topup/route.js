@@ -34,7 +34,7 @@ export async function POST(req) {
         const path = require('path');
         const envContent = fs.readFileSync(path.join(process.cwd(), '.env'), 'utf-8');
         const match = envContent.match(/OXAPAY_MERCHANT_KEY=(.*)/);
-        if (match) MERCHANT_KEY = match[1].trim();
+        if (match) MERCHANT_KEY = match[1].replace(/[\r\n]/g, '').trim();
       } catch (e) {
         console.error('Failed to read .env file', e);
       }
