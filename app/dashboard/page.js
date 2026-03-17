@@ -43,6 +43,10 @@ export default function Dashboard() {
   const [adminBalances, setAdminBalances] = useState(null);
   const [withdrawForm, setWithdrawForm] = useState({ amount: '', currency: 'USDT', network: 'TRC20', address: '' });
 
+  // Admin Settings & Analytics
+  const [settingsForm, setSettingsForm] = useState({ ownerKey: '', oxapayMerchantId: '' });
+  const [analytics, setAnalytics] = useState({ totalRevenue: 0 });
+
   // Modal states
   const [receiveModal, setReceiveModal] = useState(null);
   const [forwardModal, setForwardModal] = useState(null);
@@ -109,7 +113,34 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [router]);
+  const fetchAdminSettingsAndAnalytics = async () => {
+    try {
+      const authRes = await fetch('/api/auth/me');
+      const authData = await authRes.json();
+      if (!authRes.ok || authData.user?.role !== 'admin') return;
+
+      const [settingsRes, analyticsRes] = await Promise.all([
+        fetch('/api/admin/settings'),
+        fetch('/api/admin/analytics')
+      ]);
+
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        if (data.settings) {
+          setSettingsForm({ ownerKey: data.settings.ownerKey || '', oxapayMerchantId: data.settings.oxapayMerchantId || '' });
+        }
+      }
+
+      if (analyticsRes.ok) {
+        const data = await analyticsRes.json();
+        setAnalytics({ totalRevenue: data.totalRevenue || 0 });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => { fetchData(); fetchAdminSettingsAndAnalytics(); }, [router]);
 
   useEffect(() => {
     if (user?.role === 'admin' && activeTab === 'admin_wallet') {
@@ -472,6 +503,30 @@ export default function Dashboard() {
     fetchData();
   };
 
+  const handleRequestConsolidation = async () => {
+    if (selectedForConsolidate.length < 2) return;
+    setModalLoading(true);
+
+    try {
+      const res = await fetch('/api/packages/consolidate-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageIds: selectedForConsolidate })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to request consolidation');
+      
+      alert('Consolidation requested successfully!');
+      setConsolidateMode(false);
+      setSelectedForConsolidate([]);
+      fetchData();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const toggleConsolidateSelect = (pkgId) => {
     setSelectedForConsolidate(prev => 
       prev.includes(pkgId) ? prev.filter(id => id !== pkgId) : [...prev, pkgId]
@@ -539,6 +594,45 @@ export default function Dashboard() {
     alert("Review posted successfully!");
   };
 
+  const handleSettingsSubmit = async (e) => {
+    e.preventDefault();
+    setModalLoading(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsForm)
+      });
+      if (res.ok) alert("Settings saved successfully.");
+      else alert("Failed to save settings.");
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred saving settings.");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleDeletePackage = async (pkgId) => {
+    if (!confirm(`Are you sure you want to delete package ${pkgId}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/admin/packages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pkgId })
+      });
+      if (res.ok) {
+        fetchData();
+        alert('Package deleted.');
+      } else {
+        alert('Failed to delete package.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error deleting package.');
+    }
+  };
+
   const isAdmin = user.role === 'admin';
 
   // Filtered packages
@@ -596,6 +690,9 @@ export default function Dashboard() {
               </button>
               <button className={`${styles.navItem} ${activeTab === 'review' ? styles.active : ''}`} onClick={() => setActiveTab('review')}>
                 <FiStar /> Admin Review
+              </button>
+              <button className={`${styles.navItem} ${activeTab === 'settings' ? styles.active : ''}`} onClick={() => setActiveTab('settings')}>
+                <FiLayout /> Settings
               </button>
             </>
           ) : (
@@ -733,9 +830,16 @@ export default function Dashboard() {
                     <div style={{flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px'}}>
                       <h4 style={{margin: '0 0 8px', color: 'rgba(255,255,255,0.6)'}}>Active Forward Requests</h4>
                       <p style={{fontSize: '24px', margin: 0, fontWeight: 600, color: '#f5c518'}}>
-                        {packages.filter(p => p.status === 'Received' && p.forwardAddress && !p.forwardTrackingId).length}
+                        {packages.filter(p => p.status === 'Received' || p.status === 'Consolidation Requested').length}
                       </p>
                       <p style={{margin: '4px 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.4)'}}>Awaiting tracking updates</p>
+                    </div>
+                    <div style={{flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px'}}>
+                      <h4 style={{margin: '0 0 8px', color: 'rgba(255,255,255,0.6)'}}>Revenue This Month (USD)</h4>
+                      <p style={{fontSize: '24px', margin: 0, fontWeight: 600, color: '#32cd32'}}>
+                        ${analytics.totalRevenue.toFixed(2)}
+                      </p>
+                      <p style={{margin: '4px 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.4)'}}>Wallet deductions</p>
                     </div>
                   </div>
                 </div>
@@ -948,18 +1052,21 @@ export default function Dashboard() {
                     <h2 className={styles.gradientText} style={{margin: 0}}>
                       {isAdmin ? 'Manage Parcels' : 'Your Packages'}
                     </h2>
-                    {isAdmin && (
+                    <button 
+                      className={styles.submitBtn} 
+                      style={{padding: '8px 16px', fontSize: '13px', background: consolidateMode ? '#32cd32' : 'rgba(168, 85, 247, 0.2)', color: consolidateMode ? '#000' : '#a855f7'}} 
+                      onClick={() => setConsolidateMode(!consolidateMode)}
+                    >
+                      <FiLayers /> {consolidateMode ? 'Cancel' : 'Select for Consolidation'}
+                    </button>
+                    {consolidateMode && selectedForConsolidate.length >= 2 && (
                       <button 
                         className={styles.submitBtn} 
-                        style={{padding: '8px 16px', fontSize: '13px', background: consolidateMode ? '#32cd32' : 'rgba(168, 85, 247, 0.2)', color: consolidateMode ? '#000' : '#a855f7'}} 
-                        onClick={() => setConsolidateMode(!consolidateMode)}
+                        style={{padding: '8px 20px', fontSize: '13px'}} 
+                        onClick={isAdmin ? handleConsolidate : handleRequestConsolidation} 
+                        disabled={modalLoading}
                       >
-                        <FiLayers /> {consolidateMode ? 'Cancel' : 'Consolidate'}
-                      </button>
-                    )}
-                    {consolidateMode && selectedForConsolidate.length >= 2 && (
-                      <button className={styles.submitBtn} style={{padding: '8px 20px', fontSize: '13px'}} onClick={handleConsolidate} disabled={modalLoading}>
-                        Merge {selectedForConsolidate.length} Packages
+                        {isAdmin ? `Merge ${selectedForConsolidate.length} Packages` : `Request Consolidation (${selectedForConsolidate.length})`}
                       </button>
                     )}
                   </div>
@@ -969,6 +1076,7 @@ export default function Dashboard() {
                       <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'pending' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'pending' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('pending')}>Pending ({packages.filter(p => p.status === 'Pending').length})</button>
                       <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'forwarding' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'forwarding' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('forwarding')}>Forward Requests ({packages.filter(p => p.status === 'Received' && p.forwardAddress?.city && !p.forwardTrackingId).length})</button>
                       <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'completed' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'completed' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('completed')}>Completed</button>
+                      <button className={styles.submitBtn} style={{padding: '6px 12px', fontSize: '12px', background: adminPackageFilter === 'consolidated' ? '#f5c518' : 'rgba(255,255,255,0.05)', color: adminPackageFilter === 'consolidated' ? '#000' : '#fff'}} onClick={() => setAdminPackageFilter('consolidated')}>Consolidated Packages</button>
                     </div>
                   )}
                 </div>
@@ -1061,7 +1169,7 @@ export default function Dashboard() {
                                     <FiCamera /> Receive
                                   </button>
                                 )}
-                                {p.status === 'Received' && (
+                                {(p.status === 'Received' || p.status === 'Consolidation Requested') && (
                                   <button className={`${styles.actionBtn} ${styles.forwardBtn}`} onClick={() => handleOpenForwardModal(p)}>
                                     <FiTruck /> Forward
                                   </button>
@@ -1077,6 +1185,9 @@ export default function Dashboard() {
                                     <FiMessageCircle /> Chat
                                   </button>
                                 )}
+                                <button className={`${styles.actionBtn}`} style={{color: '#ff3b30', borderColor: 'rgba(255, 59, 48, 0.3)', padding: '6px 8px'}} onClick={() => handleDeletePackage(p.id)}>
+                                  <FiX /> Delete
+                                </button>
                               </div>
                             ) : (
                               <div>
@@ -1281,6 +1392,47 @@ export default function Dashboard() {
                   <textarea className={styles.textarea} required value={notifForm.message} onChange={e => setNotifForm({...notifForm, message: e.target.value})} placeholder="Notification content..." />
                 </div>
                 <button type="submit" className={styles.submitBtn}><FiSend /> Send Notification</button>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: Settings (ADMIN ONLY) */}
+          {activeTab === 'settings' && isAdmin && (
+            <div className={styles.glassCard} style={{maxWidth: '600px'}}>
+              <h2 className={styles.gradientText} style={{margin: '0 0 24px'}}>Global Settings</h2>
+              <p style={{color: 'rgba(255,255,255,0.6)', marginBottom: '24px', fontSize: '14px', lineHeight: 1.6}}>
+                Configure essential system settings. Changes applied here take effect immediately without needing server restarts.
+              </p>
+              <form onSubmit={handleSettingsSubmit}>
+                <div className={styles.formGroup}>
+                  <label>Owner Access Key</label>
+                  <input 
+                    className={styles.input} 
+                    required 
+                    value={settingsForm.ownerKey} 
+                    onChange={e => setSettingsForm({...settingsForm, ownerKey: e.target.value})} 
+                    placeholder="e.g. ADMIN-01" 
+                  />
+                  <p style={{fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '6px'}}>
+                    Used for logging into the admin owner panel.
+                  </p>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>OxaPay Merchant ID</label>
+                  <input 
+                    className={styles.input} 
+                    required 
+                    value={settingsForm.oxapayMerchantId} 
+                    onChange={e => setSettingsForm({...settingsForm, oxapayMerchantId: e.target.value})} 
+                    placeholder="Enter OxaPay Merchant ID" 
+                  />
+                  <p style={{fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '6px'}}>
+                    Used for accepting cryptocurrency top-ups.
+                  </p>
+                </div>
+                <button type="submit" className={styles.submitBtn} disabled={modalLoading}>
+                  {modalLoading ? 'Saving...' : <><FiLayout /> Save Settings</>}
+                </button>
               </form>
             </div>
           )}

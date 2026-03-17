@@ -34,6 +34,7 @@ export async function POST(req) {
       packageId,
       {
         $set: {
+          status: 'Forward Pending',
           forwardAddress: {
             name: forwardAddress.name.trim(),
             street: forwardAddress.street.trim(),

@@ -9,7 +9,10 @@ export async function POST(req) {
     const rawBody = await req.text();
     const payload = JSON.parse(rawBody);
 
-    const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY || 'dummy_merchant';
+    await connectDB();
+    const Settings = (await import('@/models/Settings')).default;
+    let settings = await Settings.findOne({ globalId: 'system_settings' });
+    const MERCHANT_KEY = settings ? settings.oxapayMerchantId : (process.env.OXAPAY_MERCHANT_KEY || 'dummy_merchant');
 
     // Verify Signature
     const signature = req.headers.get('hmac');

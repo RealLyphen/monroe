@@ -139,3 +139,29 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
+
+export async function DELETE(req) {
+  try {
+    const cookieStore = await cookies();
+    const session = cookieStore.get('monroe_session');
+
+    if (!session || session.value !== 'ADMIN-01') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await req.json();
+    if (!id) return NextResponse.json({ error: 'Missing package id' }, { status: 400 });
+
+    await connectDB();
+    const deletedPkg = await Package.findByIdAndDelete(id);
+
+    if (!deletedPkg) {
+      return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Package deleted successfully' });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}

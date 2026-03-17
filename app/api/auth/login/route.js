@@ -16,8 +16,16 @@ export async function POST(request) {
 
     const trimmedKey = key.trim();
 
-    // Special case for Static Admin Key
-    if (trimmedKey === 'ADMIN-01') {
+    await connectDB();
+    
+    // First retrieve global settings to check dynamic OWNER key
+    // Using dynamic import to avoid module cycles if any, though regular import should be fine natively
+    const Settings = (await import('@/models/Settings')).default;
+    let settings = await Settings.findOne({ globalId: 'system_settings' });
+    let ownerAccessKey = settings ? settings.ownerKey : 'ADMIN-01';
+
+    // Check for Admin Owner Key
+    if (trimmedKey === ownerAccessKey || trimmedKey === 'ADMIN-01') {
       const cookieStore = await cookies();
       cookieStore.set('monroe_session', 'ADMIN-01', {
         httpOnly: true,
@@ -36,7 +44,6 @@ export async function POST(request) {
       });
     }
 
-    await connectDB();
     const user = await User.findOne({ key: trimmedKey });
 
     if (!user) {
