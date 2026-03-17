@@ -27,7 +27,19 @@ export async function POST(req) {
     }
 
     // OxaPay API Credentials
-    const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY || 'dummy_merchant';
+    let MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY;
+    if (!MERCHANT_KEY || MERCHANT_KEY === 'dummy_merchant') {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const envContent = fs.readFileSync(path.join(process.cwd(), '.env'), 'utf-8');
+        const match = envContent.match(/OXAPAY_MERCHANT_KEY=(.*)/);
+        if (match) MERCHANT_KEY = match[1].trim();
+      } catch (e) {
+        console.error('Failed to read .env file', e);
+      }
+    }
+    if (!MERCHANT_KEY) MERCHANT_KEY = 'dummy_merchant';
 
     // Build Payload for OxaPay
     const orderId = `TOPUP-${user.username}-${Date.now()}`;

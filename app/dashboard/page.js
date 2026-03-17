@@ -609,6 +609,9 @@ export default function Dashboard() {
               <button className={`${styles.navItem} ${activeTab === 'submit' ? styles.active : ''}`} onClick={() => setActiveTab('submit')}>
                 <FiSend /> Submit Package
               </button>
+              <button className={`${styles.navItem} ${activeTab === 'saved_addresses' ? styles.active : ''}`} onClick={() => setActiveTab('saved_addresses')}>
+                <FiMapPin /> Saved Address
+              </button>
               <button className={`${styles.navItem} ${activeTab === 'review' ? styles.active : ''}`} onClick={() => setActiveTab('review')}>
                 <FiStar /> Post Review
               </button>
@@ -900,6 +903,38 @@ export default function Dashboard() {
                   </div>
                   <button type="submit" className={styles.submitBtn}><FiSend /> Submit Package Tracking</button>
                 </form>
+              )}
+            </div>
+          )}
+
+          {/* TAB: Saved Addresses */}
+          {activeTab === 'saved_addresses' && !isAdmin && (
+            <div className={styles.glassCard}>
+              <h2 className={styles.gradientText} style={{margin: '0 0 24px'}}>Saved Addresses</h2>
+              {savedAddresses && savedAddresses.length > 0 ? (
+                <div className={styles.addressGrid} style={{marginTop: '0'}}>
+                  {savedAddresses.map((addr, idx) => (
+                    <div key={idx} className={styles.addressCard}>
+                      <h3 className={styles.addressName}>{addr.name}</h3>
+                      <p className={styles.addressDetails}>{addr.street}<br/>{addr.city}, {addr.state} {addr.zip}<br/>{addr.country}</p>
+                      <button className={styles.copyBtn} style={{marginTop: '16px', background: 'rgba(255, 60, 48, 0.1)', color: '#ff3b30', borderColor: 'rgba(255, 60, 48, 0.1)'}} onClick={async () => {
+                        if (!confirm('Are you sure you want to delete this address?')) return;
+                        setModalLoading(true);
+                        const res = await fetch('/api/user/addresses', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: 'DELETE', address: addr })});
+                        if (res.ok) fetchData();
+                        setModalLoading(false);
+                      }} disabled={modalLoading}>
+                        Delete Address
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{textAlign: 'center', padding: '40px 20px', color: 'rgba(255,255,255,0.4)'}}>
+                  <FiMapPin size={48} style={{marginBottom: '16px', opacity: 0.5}} />
+                  <h3 style={{color: 'rgba(255,255,255,0.5)'}}>No saved addresses yet.</h3>
+                  <p style={{fontSize: '14px'}}>You can save addresses when forwarding a package.</p>
+                </div>
               )}
             </div>
           )}

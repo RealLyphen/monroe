@@ -11,7 +11,17 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const PAYOUT_KEY = process.env.OXAPAY_PAYOUT_KEY;
+    let PAYOUT_KEY = process.env.OXAPAY_PAYOUT_KEY;
+    if (!PAYOUT_KEY) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const envContent = fs.readFileSync(path.join(process.cwd(), '.env'), 'utf-8');
+        const match = envContent.match(/OXAPAY_PAYOUT_KEY=(.*)/);
+        if (match) PAYOUT_KEY = match[1].trim();
+      } catch (e) {}
+    }
+
     if (!PAYOUT_KEY) {
       return NextResponse.json({ error: 'Payout Key not configured' }, { status: 500 });
     }
