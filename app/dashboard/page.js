@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { 
   FiLayout, FiMapPin, FiPackage, FiSend, FiStar, 
   FiSearch, FiBell, FiCopy, FiCheckCircle, FiMessageCircle, FiUsers,
@@ -567,7 +566,7 @@ export default function Dashboard() {
       {/* Sidebar */}
       <aside className={styles.sidebar}>
         <Link href="/" className={styles.brand}>
-          <Image src="/logo.png" alt="Monroe Logo" width={160} height={35} style={{ objectFit: 'contain' }} />
+          <img src="/logo.png" alt="Monroe Logo" style={{ width: '160px', height: '35px', objectFit: 'contain' }} />
         </Link>
         
         <nav className={styles.navMenu}>

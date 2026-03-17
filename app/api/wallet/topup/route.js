@@ -36,7 +36,7 @@ export async function POST(req) {
 
     const payload = {
       merchant: MERCHANT_KEY,
-      amount: numAmount.toString(),
+      amount: numAmount, // OxaPay expects numeric or stringified float
       currency: 'USD',
       lifeTime: 60,
       feePaidByPayer: 1, // Optional: Let user pay network fees
