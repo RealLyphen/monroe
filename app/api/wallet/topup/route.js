@@ -27,7 +27,7 @@ export async function POST(req) {
     }
 
     // OxaPay API Credentials
-    let MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY;
+    let MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY?.replace(/[\r\n]/g, '').trim();
     if (!MERCHANT_KEY || MERCHANT_KEY === 'dummy_merchant') {
       try {
         const fs = require('fs');

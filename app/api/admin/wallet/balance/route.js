@@ -11,7 +11,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let PAYOUT_KEY = process.env.OXAPAY_PAYOUT_KEY;
+    let PAYOUT_KEY = process.env.OXAPAY_PAYOUT_KEY?.replace(/[\r\n]/g, '').trim();
     if (!PAYOUT_KEY) {
       try {
         const fs = require('fs');
