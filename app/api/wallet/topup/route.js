@@ -26,79 +26,49 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid amount. Minimum $1 required.' }, { status: 400 });
     }
 
-    // Cryptomus API Credentials
-    const MERCHANT_ID = process.env.CRYPTOMUS_MERCHANT_ID || 'dummy_merchant';
-    const PAYMENT_KEY = process.env.CRYPTOMUS_PAYMENT_KEY || 'dummy_key';
+    // OxaPay API Credentials
+    const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY || 'dummy_merchant';
 
-    // Build Payload for Cryptomus
+    // Build Payload for OxaPay
     const orderId = `TOPUP-${user.username}-${Date.now()}`;
     const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`;
-    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/cryptomus`;
-
-    // ── Sandbox Mode ──
-    if (process.env.CRYPTOMUS_SANDBOX === 'true') {
-      console.log('CRYPTOMUS SANDBOX ENABLED: Simulating payment success...');
-      
-      // Manually trigger the webhook ourselves with a mock payload
-      const mockPayload = {
-        uuid: `mock-${Date.now()}`,
-        order_id: orderId,
-        amount: numAmount.toString(),
-        currency: 'USD',
-        status: 'paid',
-        is_final: true,
-      };
-
-      // Sign the mock payload just like Cryptomus would
-      const mockBase64 = Buffer.from(JSON.stringify(mockPayload)).toString('base64');
-      mockPayload.sign = crypto.createHash('md5').update(mockBase64 + PAYMENT_KEY).digest('hex');
-
-      // Hit our own webhook in the background
-      fetch(callbackUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mockPayload)
-      }).catch(err => console.error('Sandbox webhook fail:', err));
-
-      // Redirect user back immediately
-      return NextResponse.json({ url: returnUrl });
-    }
-    // ── End Sandbox ──
+    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/oxapay`;
 
     const payload = {
+      merchant: MERCHANT_KEY,
       amount: numAmount.toString(),
       currency: 'USD',
-      order_id: orderId,
-      url_return: returnUrl,
-      url_callback: callbackUrl,
-      is_payment_multiple: true,
-      lifetime: 3600 // 1 hour
+      lifeTime: 60,
+      feePaidByPayer: 1, // Optional: Let user pay network fees
+      underPaidCover: 0,
+      callbackUrl,
+      returnUrl,
+      orderId,
+      description: `Monroe Wallet Top-up for ${user.username}`
     };
 
-    const payloadJson = JSON.stringify(payload);
-    const base64Payload = Buffer.from(payloadJson).toString('base64');
-    const sign = crypto.createHash('md5').update(base64Payload + PAYMENT_KEY).digest('hex');
-
-    const res = await fetch('https://api.cryptomus.com/v1/payment', {
+    const res = await fetch('https://api.oxapay.com/merchants/request', {
       method: 'POST',
       headers: {
-        'merchant': MERCHANT_ID,
-        'sign': sign,
         'Content-Type': 'application/json'
       },
-      body: payloadJson
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('Cryptomus API Error:', errorText);
+      console.error('OxaPay API Error:', errorText);
       return NextResponse.json({ error: 'Failed to generate payment url' }, { status: 500 });
     }
 
     const result = await res.json();
     
-    // Result contains result.url which is the payment page
-    return NextResponse.json({ url: result.result.url });
+    if (result.result !== 100) {
+      console.error('OxaPay Error response:', result);
+      return NextResponse.json({ error: result.message || 'Failed to generate invoice' }, { status: 500 });
+    }
+    
+    return NextResponse.json({ url: result.payLink });
 
   } catch (error) {
     console.error('Topup Error:', error);

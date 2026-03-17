@@ -4,6 +4,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Package from '@/models/Package';
 import Notification from '@/models/Notification';
+import Wallet from '@/models/Wallet';
 
 export async function PUT(req) {
   try {
@@ -14,7 +15,7 @@ export async function PUT(req) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id, status, photoUrl, forwardTrackingId, weight, dimensions } = await req.json();
+    const { id, status, photoUrl, forwardTrackingId, weight, dimensions, deductionAmount } = await req.json();
     if (!id || !status) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
     await connectDB();
@@ -33,6 +34,22 @@ export async function PUT(req) {
     }
 
     await pkg.save();
+
+    if (status === 'Forwarded' && deductionAmount && parseFloat(deductionAmount) > 0) {
+      let wallet = await Wallet.findOne({ userId: pkg.userId._id });
+      if (!wallet) {
+        wallet = new Wallet({ userId: pkg.userId._id, balance: 0, transactions: [] });
+      }
+      wallet.balance -= parseFloat(deductionAmount);
+      wallet.transactions.unshift({
+        id: `TXN-${Date.now()}`,
+        type: 'debit',
+        amount: parseFloat(deductionAmount),
+        note: `Shipping cost for package ${pkg.trackingId}`,
+        createdAt: new Date()
+      });
+      await wallet.save();
+    }
 
     // Auto-notify the user when status changes
     let notifMessage = `Your package ${pkg.trackingId} has been marked as ${status}.`;

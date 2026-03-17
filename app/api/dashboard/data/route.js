@@ -70,7 +70,8 @@ export async function GET() {
       packages: userPackages.map(p => ({ ...p, id: p._id.toString(), username: user.username })),
       addresses: activeAddresses,
       notifications: userNotifications,
-      wallet: userWallet || { balance: 0, transactions: [] }
+      wallet: userWallet || { balance: 0, transactions: [] },
+      savedAddresses: user.savedAddresses || []
     });
 
   } catch (error) {

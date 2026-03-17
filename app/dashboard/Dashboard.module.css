@@ -665,3 +665,94 @@
   font-size: 13px;
   color: rgba(255, 255, 255, 0.7);
 }
+
+/* ── Mobile Responsiveness ── */
+@media (max-width: 768px) {
+  .dashboardContainer {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    padding: 20px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    z-index: 20;
+  }
+
+  .brand {
+    margin-bottom: 0;
+  }
+
+  .navMenu {
+    flex-direction: row;
+    overflow-x: auto;
+    width: 100%;
+    margin-top: 16px;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+
+  .navItem {
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+
+  .sidebarBottom {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .walletCard {
+    margin-bottom: 0;
+    padding: 10px 16px;
+  }
+
+  .logoutBtn {
+    width: auto;
+    padding: 10px 16px;
+  }
+
+  .main {
+    padding: 0 16px 24px;
+  }
+
+  .topHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px 0;
+  }
+
+  .statsGrid, .usersGrid, .walletGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .inlineFormRow {
+    flex-direction: column;
+  }
+
+  .glassCard {
+    padding: 20px;
+  }
+
+  .tableContainer {
+    margin-bottom: 20px;
+  }
+
+  .userStatsRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+

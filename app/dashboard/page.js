@@ -7,7 +7,7 @@ import {
   FiLayout, FiMapPin, FiPackage, FiSend, FiStar, 
   FiSearch, FiBell, FiCopy, FiCheckCircle, FiMessageCircle, FiUsers,
   FiCamera, FiUpload, FiX, FiImage, FiTruck, FiLogOut,
-  FiDollarSign, FiLayers, FiBox
+  FiDollarSign, FiLayers, FiBox, FiBriefcase
 } from 'react-icons/fi';
 import styles from './Dashboard.module.css';
 
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
+  const [savedAddresses, setSavedAddresses] = useState([]);
   const [allWallets, setAllWallets] = useState({});
   const [searchAddr, setSearchAddr] = useState('');
   const [searchParcels, setSearchParcels] = useState('');
@@ -39,16 +40,23 @@ export default function Dashboard() {
   const [addressModal, setAddressModal] = useState({ isOpen: false, mode: 'ADD', id: null });
   const [addressForm, setAddressForm] = useState({ name: '', street: '', city: '', state: '', zip: '', country: '' });
 
+  // Admin Wallet States
+  const [adminBalances, setAdminBalances] = useState(null);
+  const [withdrawForm, setWithdrawForm] = useState({ amount: '', currency: 'USDT', network: 'TRC20', address: '' });
+
   // Modal states
   const [receiveModal, setReceiveModal] = useState(null);
   const [forwardModal, setForwardModal] = useState(null);
   const [userForwardModal, setUserForwardModal] = useState(null);
+  const [saveAddressChecked, setSaveAddressChecked] = useState(false);
+  const [forwardConfirmStep, setForwardConfirmStep] = useState(false);
   const [topupModal, setTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
   const [chatModal, setChatModal] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [forwardTrackingInput, setForwardTrackingInput] = useState('');
+  const [deductionAmount, setDeductionAmount] = useState('');
   const [receiveWeight, setReceiveWeight] = useState('');
   const [receiveDimensions, setReceiveDimensions] = useState('');
   const [modalLoading, setModalLoading] = useState(false);
@@ -81,6 +89,7 @@ export default function Dashboard() {
         setNotifications(payload.notifications || []);
         if (payload.users) setAllUsers(payload.users);
         if (payload.wallet) setWallet(payload.wallet);
+        if (payload.savedAddresses) setSavedAddresses(payload.savedAddresses);
         if (payload.wallets) setAllWallets(payload.wallets);
       }
       setLoading(false);
@@ -89,7 +98,25 @@ export default function Dashboard() {
     }
   };
 
+  const fetchAdminBalance = async () => {
+    try {
+      const res = await fetch('/api/admin/wallet/balance');
+      if (res.ok) {
+        const data = await res.json();
+        setAdminBalances(data.balances || {});
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => { fetchData(); }, [router]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && activeTab === 'admin_wallet') {
+      fetchAdminBalance();
+    }
+  }, [activeTab, user]);
 
   // ── Ctrl+V paste image support ──
   const handlePaste = useCallback((e) => {
@@ -277,6 +304,7 @@ export default function Dashboard() {
   const handleOpenForwardModal = (pkg) => {
     setForwardModal(pkg);
     setForwardTrackingInput('');
+    setDeductionAmount('');
   };
 
   const handleConfirmForward = async () => {
@@ -286,12 +314,18 @@ export default function Dashboard() {
     await fetch('/api/admin/packages', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: forwardModal.id, status: 'Forwarded', forwardTrackingId: forwardTrackingInput.trim() })
+      body: JSON.stringify({ 
+        id: forwardModal.id, 
+        status: 'Forwarded', 
+        forwardTrackingId: forwardTrackingInput.trim(),
+        deductionAmount: deductionAmount || 0
+      })
     });
 
     setModalLoading(false);
     setForwardModal(null);
     setForwardTrackingInput('');
+    setDeductionAmount('');
     fetchData();
   };
 
@@ -310,9 +344,27 @@ export default function Dashboard() {
   const handleUserForwardSubmit = async (e) => {
     e.preventDefault();
     if (!userForwardModal) return;
+
+    if (!forwardConfirmStep) {
+      // Step 1: User hits "Save Address" on the first modal page. Move to confirm step.
+      setForwardConfirmStep(true);
+      return;
+    }
+
+    // Step 2: User hits "Confirm Shipment" on the second modal page
     setModalLoading(true);
 
     try {
+      // Opt-in: Save address for future use
+      if (saveAddressChecked) {
+        await fetch('/api/user/addresses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ADD', address: forwardAddress })
+        });
+      }
+
+      // Submit forward package request
       const res = await fetch('/api/packages/forward', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -321,11 +373,15 @@ export default function Dashboard() {
           forwardAddress
         })
       });
+      
+      const resData = await res.json();
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to Forward Package');
+        throw new Error(resData.error || 'Failed to Forward Package');
       }
+      
       setUserForwardModal(null);
+      setForwardConfirmStep(false);
+      setSaveAddressChecked(false);
       setForwardAddress({ name: '', street: '', city: '', state: '', zip: '', country: '' });
       fetchData();
     } catch (err) {
@@ -424,6 +480,27 @@ export default function Dashboard() {
   };
 
   // ── Wallet (admin) ──
+  const handleAdminWithdraw = async (e) => {
+    e.preventDefault();
+    setModalLoading(true);
+    try {
+      const res = await fetch('/api/admin/wallet/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(withdrawForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Withdrawal failed');
+      alert('Withdrawal initiated! TX ID: ' + data.txId);
+      setWithdrawForm({ amount: '', currency: 'USDT', network: 'TRC20', address: '' });
+      fetchAdminBalance();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const handleWalletUpdate = async (e) => {
     e.preventDefault();
     await fetch('/api/admin/wallet', {
@@ -511,6 +588,9 @@ export default function Dashboard() {
               </button>
               <button className={`${styles.navItem} ${activeTab === 'wallets' ? styles.active : ''}`} onClick={() => setActiveTab('wallets')}>
                 <FiDollarSign /> Manage Wallets
+              </button>
+              <button className={`${styles.navItem} ${activeTab === 'admin_wallet' ? styles.active : ''}`} onClick={() => setActiveTab('admin_wallet')}>
+                <FiBriefcase /> Owner Wallet
               </button>
               <button className={`${styles.navItem} ${activeTab === 'notify' ? styles.active : ''}`} onClick={() => setActiveTab('notify')}>
                 <FiBell /> Broadcast Alerts
@@ -927,7 +1007,8 @@ export default function Dashboard() {
                                 <div style={{fontSize: '12px', lineHeight: 1.5}}>
                                   <div style={{color: '#fff', fontWeight: 500}}>{p.forwardAddress.name}</div>
                                   <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.forwardAddress.street}</div>
-                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.forwardAddress.city}</div>
+                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.forwardAddress.city}{p.forwardAddress.state ? `, ${p.forwardAddress.state}` : ''} {p.forwardAddress.zip}</div>
+                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.forwardAddress.country}</div>
                                 </div>
                               ) : <span style={{fontSize: '12px', color: 'rgba(255,255,255,0.3)'}}>Not provided</span>}
                             </td>
@@ -1080,6 +1161,51 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* TAB: Owner Wallet (ADMIN ONLY) */}
+          {activeTab === 'admin_wallet' && isAdmin && (
+            <div className={styles.glassCard} style={{maxWidth: '800px'}}>
+              <h2 className={styles.gradientText} style={{margin: '0 0 24px'}}>Owner Crypto Wallet</h2>
+              
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '32px'}}>
+                {adminBalances ? (
+                  Object.entries(adminBalances).filter(([k]) => k !== 'message' && k !== 'result').map(([currency, amount]) => (
+                    <div key={currency} style={{background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)'}}>
+                      <div style={{color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '4px'}}>{currency} Balance</div>
+                      <div style={{fontSize: '20px', fontWeight: '600', color: '#fff'}}>{parseFloat(amount).toFixed(4)}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{color: 'rgba(255,255,255,0.5)', fontSize: '14px'}}>Loading balances...</div>
+                )}
+              </div>
+
+              <h3 style={{margin: '0 0 16px', fontSize: '16px', color: '#fff'}}>Withdraw Funds</h3>
+              <form onSubmit={handleAdminWithdraw}>
+                <div className={styles.inlineFormRow}>
+                  <div className={styles.formGroup} style={{flex: 1}}>
+                    <label>Amount</label>
+                    <input type="number" step="0.000001" className={styles.input} required value={withdrawForm.amount} onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} placeholder="0.00" />
+                  </div>
+                  <div className={styles.formGroup} style={{flex: 1}}>
+                    <label>Currency</label>
+                    <input type="text" className={styles.input} required value={withdrawForm.currency} onChange={e => setWithdrawForm({...withdrawForm, currency: e.target.value.toUpperCase()})} placeholder="e.g. USDT, TRX" />
+                  </div>
+                  <div className={styles.formGroup} style={{flex: 1}}>
+                    <label>Network</label>
+                    <input type="text" className={styles.input} value={withdrawForm.network} onChange={e => setWithdrawForm({...withdrawForm, network: e.target.value.toUpperCase()})} placeholder="e.g. TRC20, ERC20" />
+                  </div>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Destination Address</label>
+                  <input type="text" className={styles.input} required value={withdrawForm.address} onChange={e => setWithdrawForm({...withdrawForm, address: e.target.value})} placeholder="Enter crypto address" />
+                </div>
+                <button type="submit" className={styles.submitBtn} disabled={modalLoading}>
+                  {modalLoading ? 'Processing...' : <><FiSend /> Submit Withdrawal</>}
+                </button>
+              </form>
+            </div>
+          )}
+
           {/* TAB: Post Review */}
           {activeTab === 'review' && (
             <div className={styles.glassCard} style={{maxWidth: '600px'}}>
@@ -1186,7 +1312,7 @@ export default function Dashboard() {
             {forwardModal.forwardAddress ? (
               <div className={styles.forwardAddrCard}>
                 <p className={styles.forwardAddrLabel}>📍 Ship To</p>
-                <p className={styles.forwardAddrText}>{forwardModal.forwardAddress.name}{'\n'}{forwardModal.forwardAddress.street}{'\n'}{forwardModal.forwardAddress.city}</p>
+                <p className={styles.forwardAddrText}>{forwardModal.forwardAddress.name}{'\n'}{forwardModal.forwardAddress.street}{'\n'}{forwardModal.forwardAddress.city}{forwardModal.forwardAddress.state ? `, ${forwardModal.forwardAddress.state}` : ''} {forwardModal.forwardAddress.zip}{'\n'}{forwardModal.forwardAddress.country}</p>
               </div>
             ) : (
               <div className={styles.forwardAddrCard} style={{borderColor: 'rgba(255, 59, 48, 0.2)', background: 'rgba(255, 59, 48, 0.06)'}}>
@@ -1202,9 +1328,18 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className={styles.formGroup} style={{marginBottom: 0}}>
+            <div className={styles.formGroup} style={{marginBottom: '16px'}}>
               <label>Outgoing Tracking Number</label>
               <input type="text" className={styles.input} placeholder="Enter the new outgoing tracking #" value={forwardTrackingInput} onChange={e => setForwardTrackingInput(e.target.value)} />
+            </div>
+
+            <div className={styles.formGroup} style={{marginBottom: 0}}>
+              <label>Amount to Deduct from Wallet (USD)</label>
+              <div style={{position: 'relative'}}>
+                <span style={{position: 'absolute', left: '16px', top: '16px', color: 'rgba(255,255,255,0.4)', fontSize: '15px'}}>$</span>
+                <input type="number" step="0.01" min="0" className={styles.input} style={{paddingLeft: '32px'}} placeholder="0.00" value={deductionAmount} onChange={e => setDeductionAmount(e.target.value)} />
+              </div>
+              <p style={{fontSize: '12px', color: 'rgba(255,255,255,0.4)', margin: '4px 0 0'}}>Leave 0 or empty for no deduction.</p>
             </div>
 
             <div className={styles.modalActions}>
@@ -1221,41 +1356,86 @@ export default function Dashboard() {
       {userForwardModal && (
         <div className={styles.modalOverlay} onClick={() => !modalLoading && setUserForwardModal(null)}>
           <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>📦 Setup Forwarding</h3>
-            <p className={styles.modalSubtitle}>Provide your destination address for {userForwardModal.id}</p>
+            <h3 className={styles.modalTitle}>📦 {forwardConfirmStep ? 'Confirm Shipment' : 'Setup Forwarding'}</h3>
+            <p className={styles.modalSubtitle}>{forwardConfirmStep ? `Review final details for ${userForwardModal.id}` : `Provide your destination address for ${userForwardModal.id}`}</p>
 
             <form onSubmit={handleUserForwardSubmit}>
-              <div className={styles.formGroup}>
-                <label>Recipient Name</label>
-                <input type="text" className={styles.input} placeholder="Full name for the shipping label" value={forwardAddress.name} onChange={e => setForwardAddress({...forwardAddress, name: e.target.value})} required />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Street Address</label>
-                <input type="text" className={styles.input} placeholder="123 Main St, Apt 4" value={forwardAddress.street} onChange={e => setForwardAddress({...forwardAddress, street: e.target.value})} required />
-              </div>
-              <div className={styles.formGroup}>
-                <label>City</label>
-                <input type="text" className={styles.input} placeholder="e.g. London" value={forwardAddress.city} onChange={e => setForwardAddress({...forwardAddress, city: e.target.value})} required />
-              </div>
-              <div className={styles.formGroup}>
-                <label>State / Province</label>
-                <input type="text" className={styles.input} placeholder="e.g. NY" value={forwardAddress.state} onChange={e => setForwardAddress({...forwardAddress, state: e.target.value})} required />
-              </div>
-              <div className={styles.formGroup}>
-                <label>ZIP / Postal Code</label>
-                <input type="text" className={styles.input} placeholder="e.g. W1D 4AG" value={forwardAddress.zip} onChange={e => setForwardAddress({...forwardAddress, zip: e.target.value})} required />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Country</label>
-                <input type="text" className={styles.input} placeholder="e.g. United Kingdom" value={forwardAddress.country} onChange={e => setForwardAddress({...forwardAddress, country: e.target.value})} required />
-              </div>
+              {!forwardConfirmStep ? (
+                <>
+                  {savedAddresses && savedAddresses.length > 0 && (
+                    <div className={styles.formGroup} style={{marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.06)'}}>
+                      <label>Use Saved Address</label>
+                      <select className={styles.select} onChange={(e) => {
+                        if (e.target.value === '') return;
+                        const sAddr = savedAddresses[Number(e.target.value)];
+                        setForwardAddress({ 
+                          name: sAddr.name, 
+                          street: sAddr.street, 
+                          city: sAddr.city, 
+                          state: sAddr.state || '', 
+                          zip: sAddr.zip || '', 
+                          country: sAddr.country || '' 
+                        });
+                      }}>
+                        <option value="">Choose a saved address...</option>
+                        {savedAddresses.map((sa, i) => (
+                          <option key={i} value={i}>{sa.name} - {sa.street}, {sa.city}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-              <div className={styles.modalActions}>
-                <button type="button" className={styles.modalCancelBtn} onClick={() => { setUserForwardModal(null); setForwardAddress({name:'', street:'', city:'', state:'', zip:'', country:''}); }} disabled={modalLoading}>Cancel</button>
-                <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading || !forwardAddress.name || !forwardAddress.street || !forwardAddress.city || !forwardAddress.state || !forwardAddress.zip || !forwardAddress.country}>
-                  {modalLoading ? 'Saving...' : <><FiTruck /> Save Address</>}
-                </button>
-              </div>
+                  <div className={styles.formGroup}>
+                    <label>Recipient Name</label>
+                    <input type="text" className={styles.input} placeholder="Full name for the shipping label" value={forwardAddress.name} onChange={e => setForwardAddress({...forwardAddress, name: e.target.value})} required />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Street Address</label>
+                    <input type="text" className={styles.input} placeholder="123 Main St, Apt 4" value={forwardAddress.street} onChange={e => setForwardAddress({...forwardAddress, street: e.target.value})} required />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>City</label>
+                    <input type="text" className={styles.input} placeholder="e.g. London" value={forwardAddress.city} onChange={e => setForwardAddress({...forwardAddress, city: e.target.value})} required />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>State / Province</label>
+                    <input type="text" className={styles.input} placeholder="e.g. NY" value={forwardAddress.state} onChange={e => setForwardAddress({...forwardAddress, state: e.target.value})} required />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>ZIP / Postal Code</label>
+                    <input type="text" className={styles.input} placeholder="e.g. W1D 4AG" value={forwardAddress.zip} onChange={e => setForwardAddress({...forwardAddress, zip: e.target.value})} required />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Country</label>
+                    <input type="text" className={styles.input} placeholder="e.g. United Kingdom" value={forwardAddress.country} onChange={e => setForwardAddress({...forwardAddress, country: e.target.value})} required />
+                  </div>
+
+                  <div className={styles.formGroup} style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                    <input type="checkbox" className={styles.consolidateCheck} id="saveAddrCheck" checked={saveAddressChecked} onChange={e => setSaveAddressChecked(e.target.checked)} />
+                    <label htmlFor="saveAddrCheck" style={{marginBottom: 0, cursor: 'pointer', color: '#fff'}}>Save this address for future use</label>
+                  </div>
+
+                  <div className={styles.modalActions}>
+                    <button type="button" className={styles.modalCancelBtn} onClick={() => { setUserForwardModal(null); setForwardAddress({name:'', street:'', city:'', state:'', zip:'', country:''}); }} disabled={modalLoading}>Cancel</button>
+                    <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading || !forwardAddress.name || !forwardAddress.street || !forwardAddress.city || !forwardAddress.state || !forwardAddress.zip || !forwardAddress.country}>
+                      {modalLoading ? 'Saving...' : <>Review Details</>}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.forwardAddrCard}>
+                    <p className={styles.forwardAddrLabel}>📍 Ship To</p>
+                    <p className={styles.forwardAddrText}>{forwardAddress.name}{'\n'}{forwardAddress.street}{'\n'}{forwardAddress.city}{forwardAddress.state ? `, ${forwardAddress.state}` : ''} {forwardAddress.zip}{'\n'}{forwardAddress.country}</p>
+                  </div>
+                  <div className={styles.modalActions}>
+                    <button type="button" className={styles.modalCancelBtn} onClick={() => setForwardConfirmStep(false)} disabled={modalLoading}>Back</button>
+                    <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading}>
+                      {modalLoading ? 'Confirming...' : <><FiTruck /> Confirm Shipment</>}
+                    </button>
+                  </div>
+                </>
+              )}
             </form>
           </div>
         </div>
@@ -1290,7 +1470,7 @@ export default function Dashboard() {
               <div className={styles.modalActions}>
                 <button type="button" className={styles.modalCancelBtn} onClick={() => setTopupModal(false)} disabled={modalLoading}>Cancel</button>
                 <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading || !topupAmount || topupAmount < 1}>
-                  {modalLoading ? 'Processing...' : <><FiDollarSign /> Pay with Cryptomus</>}
+                  {modalLoading ? 'Processing...' : <><FiDollarSign /> Pay with OxaPay</>}
                 </button>
               </div>
             </form>

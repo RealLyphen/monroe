@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Wallet from '@/models/Wallet';
@@ -7,24 +9,24 @@ export async function POST(req) {
     const rawBody = await req.text();
     const payload = JSON.parse(rawBody);
 
-    const PAYMENT_KEY = process.env.CRYPTOMUS_PAYMENT_KEY || 'dummy_key';
+    const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY || 'dummy_merchant';
 
     // Verify Signature
-    const { sign, ...dataWithoutSign } = payload;
-    const base64Body = Buffer.from(JSON.stringify(dataWithoutSign)).toString('base64');
-    const expectedSign = crypto.createHash('md5').update(base64Body + PAYMENT_KEY).digest('hex');
+    const signature = req.headers.get('hmac');
+    const expectedSign = crypto.createHmac('sha512', MERCHANT_KEY).update(rawBody).digest('hex');
 
-    if (sign !== expectedSign) {
-      console.error('Cryptomus webhook invalid signature');
+    if (signature !== expectedSign) {
+      console.error('OxaPay webhook invalid signature');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
     // Process only successful payments
-    if (payload.status === 'paid' || payload.status === 'paid_over') {
+    if (payload.status === 'Paid') {
       
-      const orderIdParts = payload.order_id.split('-');
+      const orderIdParts = payload.orderId.split('-');
       if (orderIdParts.length >= 3 && orderIdParts[0] === 'TOPUP') {
         const username = orderIdParts[1];
+        // Ensure final amount is read correctly. OxaPay uses "payAmount" / "amount" sometimes, we requested in USD.
         const finalAmount = parseFloat(payload.amount);
         
         await connectDB();
@@ -36,7 +38,7 @@ export async function POST(req) {
           }
 
           // Avoid duplicate processing by checking transaction ID
-          const txId = `CRYPTO-${payload.uuid}`;
+          const txId = `OXA-${payload.trackId || Date.now()}`;
           const alreadyProcessed = wallet.transactions.some(t => t.id === txId);
 
           if (!alreadyProcessed) {
@@ -45,12 +47,12 @@ export async function POST(req) {
               id: txId,
               type: 'credit',
               amount: finalAmount,
-              note: `Cryptomus Top-Up (${payload.currency})`,
+              note: `OxaPay Top-Up (USD - ${payload.payCoin || 'Crypto'})`,
               createdAt: new Date()
             });
 
             await wallet.save();
-            console.log(`Processed Cryptomus top-up of $${finalAmount} for user ${username}`);
+            console.log(`Processed OxaPay top-up of $${finalAmount} for user ${username}`);
           }
         }
       }
@@ -58,7 +60,7 @@ export async function POST(req) {
 
     return NextResponse.json({ status: 'ok' });
   } catch (error) {
-    console.error('Cryptomus Webhook Error:', error);
+    console.error('OxaPay Webhook Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
