@@ -101,6 +101,12 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Packages not found' }, { status: 404 });
       }
 
+      // Check all packages are at the same address
+      const cities = [...new Set(targetPkgs.map(p => (p.addressCity || '').toLowerCase().trim()))];
+      if (cities.length > 1) {
+        return NextResponse.json({ error: 'All packages must be at the same address to consolidate.' }, { status: 400 });
+      }
+
       // Create a consolidated package
       const firstPkg = targetPkgs[0];
       const newPkg = await Package.create({

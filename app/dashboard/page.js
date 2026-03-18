@@ -6,7 +6,7 @@ import {
   FiLayout, FiMapPin, FiPackage, FiSend, FiStar, 
   FiSearch, FiBell, FiCopy, FiCheckCircle, FiMessageCircle, FiUsers,
   FiCamera, FiUpload, FiX, FiImage, FiTruck, FiLogOut,
-  FiDollarSign, FiLayers, FiBox, FiBriefcase
+  FiDollarSign, FiLayers, FiBox, FiBriefcase, FiGrid
 } from 'react-icons/fi';
 import styles from './Dashboard.module.css';
 
@@ -75,6 +75,10 @@ export default function Dashboard() {
   // Consolidation states
   const [consolidateMode, setConsolidateMode] = useState(false);
   const [selectedForConsolidate, setSelectedForConsolidate] = useState([]);
+
+  // Packages By Address state
+  const [selectedAddressForDetail, setSelectedAddressForDetail] = useState(null);
+  const [pbaSearch, setPbaSearch] = useState('');
   const [adminPackageFilter, setAdminPackageFilter] = useState('all');
 
   const fetchData = async () => {
@@ -489,6 +493,15 @@ export default function Dashboard() {
   // ── Consolidation ──
   const handleConsolidate = async () => {
     if (selectedForConsolidate.length < 2) return;
+
+    // Validate: all selected packages must be at the same address
+    const selectedPkgs = packages.filter(p => selectedForConsolidate.includes(p.id));
+    const uniqueCities = [...new Set(selectedPkgs.map(p => (p.addressCity || '').toLowerCase().trim()))];
+    if (uniqueCities.length > 1) {
+      alert('⚠️ Cannot consolidate packages from different addresses.\n\nAll selected packages must be at the same reship address.');
+      return;
+    }
+
     setModalLoading(true);
 
     await fetch('/api/admin/packages', {
@@ -505,6 +518,15 @@ export default function Dashboard() {
 
   const handleRequestConsolidation = async () => {
     if (selectedForConsolidate.length < 2) return;
+
+    // Validate: all selected packages must be at the same address
+    const selectedPkgs = packages.filter(p => selectedForConsolidate.includes(p.id));
+    const uniqueCities = [...new Set(selectedPkgs.map(p => (p.addressCity || '').toLowerCase().trim()))];
+    if (uniqueCities.length > 1) {
+      alert('⚠️ Cannot consolidate packages from different addresses.\n\nAll selected packages must be at the same reship address.');
+      return;
+    }
+
     setModalLoading(true);
 
     try {
@@ -688,6 +710,9 @@ export default function Dashboard() {
               </button>
               <button className={`${styles.navItem} ${activeTab === 'admin_wallet' ? styles.active : ''}`} onClick={() => setActiveTab('admin_wallet')}>
                 <FiBriefcase /> Owner Wallet
+              </button>
+              <button className={`${styles.navItem} ${activeTab === 'packages_by_address' ? styles.active : ''}`} onClick={() => { setActiveTab('packages_by_address'); setSelectedAddressForDetail(null); setPbaSearch(''); }}>
+                <FiGrid /> Packages By Address
               </button>
               <button className={`${styles.navItem} ${activeTab === 'notify' ? styles.active : ''}`} onClick={() => setActiveTab('notify')}>
                 <FiBell /> Broadcast Alerts
@@ -1412,6 +1437,168 @@ export default function Dashboard() {
               </form>
             </div>
           )}
+
+          {/* TAB: Packages By Address (ADMIN ONLY) */}
+          {activeTab === 'packages_by_address' && isAdmin && (() => {
+            // Build per-address package groups from the addresses list
+            const addrGroups = addresses.map(addr => {
+              const addrPkgs = packages.filter(p =>
+                (p.addressCity || '').toLowerCase().trim() === (addr.city || '').toLowerCase().trim()
+              );
+              return { addr, pkgs: addrPkgs };
+            });
+
+            if (!selectedAddressForDetail) {
+              // ── Phase 1: Address Cards Grid ──
+              return (
+                <>
+                  <div className={styles.glassCard} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <h2 className={styles.gradientText} style={{ margin: '0 0 8px 0' }}>Packages By Address</h2>
+                      <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Click an address to view all packages assigned to it.</p>
+                    </div>
+                    <div style={{ position: 'relative', width: '250px' }}>
+                      <FiSearch style={{ position: 'absolute', left: '16px', top: '16px', color: 'rgba(255,255,255,0.4)' }} />
+                      <input type="text" placeholder="Search address..." className={styles.input} style={{ paddingLeft: '44px' }} value={pbaSearch} onChange={e => setPbaSearch(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className={styles.addressGrid}>
+                    {addrGroups
+                      .filter(({ addr }) => (addr.name + addr.city + addr.street).toLowerCase().includes(pbaSearch.toLowerCase()))
+                      .map(({ addr, pkgs }, idx) => {
+                        const pending = pkgs.filter(p => p.status === 'Pending').length;
+                        const received = pkgs.filter(p => p.status === 'Received').length;
+                        const forwarded = pkgs.filter(p => p.status === 'Forwarded' || p.status === 'Completed').length;
+                        return (
+                          <div
+                            key={idx}
+                            className={styles.addressCard}
+                            style={{ cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                            onClick={() => setSelectedAddressForDetail(addr)}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(168,85,247,0.2)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                              <h3 className={styles.addressName} style={{ margin: 0 }}>
+                                {addr.name.replace(' (USE THIS NAME)', '')}
+                              </h3>
+                              <span style={{
+                                background: pkgs.length > 0 ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.05)',
+                                color: pkgs.length > 0 ? '#a855f7' : 'rgba(255,255,255,0.3)',
+                                fontSize: '12px', fontWeight: 700,
+                                padding: '2px 8px', borderRadius: '12px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {pkgs.length} pkg{pkgs.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <p className={styles.addressDetails} style={{ marginBottom: '16px' }}>{addr.street}<br />{addr.city}</p>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {pending > 0 && <span style={{ fontSize: '11px', background: 'rgba(245,197,24,0.12)', color: '#f5c518', padding: '2px 8px', borderRadius: '8px' }}>⏳ {pending} Pending</span>}
+                              {received > 0 && <span style={{ fontSize: '11px', background: 'rgba(50,205,50,0.12)', color: '#32cd32', padding: '2px 8px', borderRadius: '8px' }}>✅ {received} Received</span>}
+                              {forwarded > 0 && <span style={{ fontSize: '11px', background: 'rgba(100,149,237,0.12)', color: '#6495ed', padding: '2px 8px', borderRadius: '8px' }}>📦 {forwarded} Shipped</span>}
+                              {pkgs.length === 0 && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>No packages yet</span>}
+                            </div>
+                            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '6px', color: '#a855f7', fontSize: '13px' }}>
+                              <FiPackage size={13} /> View packages →
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                </>
+              );
+            } else {
+              // ── Phase 2: Drilled-in Package Table ──
+              const detailPkgs = packages.filter(p =>
+                (p.addressCity || '').toLowerCase().trim() === (selectedAddressForDetail.city || '').toLowerCase().trim()
+              );
+              return (
+                <>
+                  <div className={styles.glassCard} style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <button
+                        className={styles.copyBtn}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => setSelectedAddressForDetail(null)}
+                      >
+                        ← Back to Addresses
+                      </button>
+                      <div>
+                        <h2 className={styles.gradientText} style={{ margin: '0 0 4px' }}>
+                          {selectedAddressForDetail.name.replace(' (USE THIS NAME)', '')}
+                        </h2>
+                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
+                          {selectedAddressForDetail.street}, {selectedAddressForDetail.city} — {detailPkgs.length} package{detailPkgs.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {detailPkgs.length === 0 ? (
+                    <div className={styles.glassCard} style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(255,255,255,0.4)' }}>
+                      <FiPackage size={48} style={{ marginBottom: '16px', opacity: 0.4 }} />
+                      <h3 style={{ color: 'rgba(255,255,255,0.5)' }}>No packages at this address yet.</h3>
+                    </div>
+                  ) : (
+                    <div className={styles.glassCard}>
+                      <div className={styles.tableContainer}>
+                        <table className={styles.table}>
+                          <thead>
+                            <tr>
+                              <th>Photo</th>
+                              <th>Package ID</th>
+                              <th>Username</th>
+                              <th>Tracking ID</th>
+                              <th>Weight</th>
+                              <th>Forward To</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detailPkgs.map(p => (
+                              <tr key={p.id}>
+                                <td>
+                                  {p.photoUrl ? (
+                                    <img src={p.photoUrl} alt="Package" className={styles.pkgThumb} onClick={() => setLightboxUrl(p.photoUrl)} />
+                                  ) : (
+                                    <div className={styles.noPhoto}><FiImage /></div>
+                                  )}
+                                </td>
+                                <td style={{ fontWeight: 600, color: '#fff' }}>
+                                  {p.id}
+                                  {p.isConsolidated && <span style={{ display: 'block', fontSize: '10px', color: '#a855f7', marginTop: '2px' }}>📦 Consolidated</span>}
+                                </td>
+                                <td style={{ color: 'rgba(255,255,255,0.7)' }}>{p.username}</td>
+                                <td style={{ fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>{p.trackingId}</td>
+                                <td style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>{p.weight ? `${p.weight} lbs` : '—'}</td>
+                                <td>
+                                  {p.forwardAddress?.city ? (
+                                    <div style={{ fontSize: '12px', lineHeight: 1.5 }}>
+                                      <div style={{ color: '#fff', fontWeight: 500 }}>{p.forwardAddress.name}</div>
+                                      <div style={{ color: 'rgba(255,255,255,0.5)' }}>{p.forwardAddress.city}{p.forwardAddress.state ? `, ${p.forwardAddress.state}` : ''}</div>
+                                    </div>
+                                  ) : <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Not set</span>}
+                                </td>
+                                <td>
+                                  <span className={`${styles.statusBadge} ${styles['status' + p.status]}`}>{p.status}</span>
+                                  {p.forwardTrackingId && (
+                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', fontFamily: 'monospace' }}>→ {p.forwardTrackingId}</div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            }
+          })()}
 
           {/* TAB: Settings (ADMIN ONLY) */}
           {activeTab === 'settings' && isAdmin && (
