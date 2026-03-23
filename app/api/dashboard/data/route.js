@@ -45,7 +45,7 @@ export async function GET() {
 
       return NextResponse.json({
         packages: mappedPackages,
-        addresses: allAddresses,
+        addresses: allAddresses.map(a => ({ ...a, id: a._id.toString() })),
         users: allUsers,
         notifications: allNotifications,
         wallets: walletsMap
@@ -68,7 +68,7 @@ export async function GET() {
 
     return NextResponse.json({
       packages: userPackages.map(p => ({ ...p, id: p._id.toString(), username: user.username })),
-      addresses: activeAddresses,
+      addresses: activeAddresses.map(a => ({ ...a, id: a._id.toString() })),
       notifications: userNotifications,
       wallet: userWallet || { balance: 0, transactions: [] },
       savedAddresses: user.savedAddresses || []

@@ -81,6 +81,9 @@ export default function Footer() {
               <Link href="/privacy">Privacy Policy</Link>
               <a href="https://t.me/demo" target="_blank" rel="noopener noreferrer">Support</a>
             </div>
+            <p style={{ marginTop: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.4)' }}>
+              Developed By <a href="https://t.me/Lyphen" target="_blank" rel="noopener noreferrer" style={{ color: '#f5c518', textDecoration: 'none' }}>Lyphen</a>
+            </p>
           </div>
         </div>
       </div>
