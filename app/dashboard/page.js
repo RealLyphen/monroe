@@ -75,6 +75,8 @@ export default function Dashboard() {
   // Consolidation states
   const [consolidateMode, setConsolidateMode] = useState(false);
   const [selectedForConsolidate, setSelectedForConsolidate] = useState([]);
+  const [consolidateAddressModal, setConsolidateAddressModal] = useState(false);
+  const [consolidateForwardAddress, setConsolidateForwardAddress] = useState({ name: '', street: '', city: '', state: '', zip: '', country: '' });
 
   // Packages By Address state
   const [selectedAddressForDetail, setSelectedAddressForDetail] = useState(null);
@@ -516,7 +518,7 @@ export default function Dashboard() {
     fetchData();
   };
 
-  const handleRequestConsolidation = async () => {
+  const handleOpenConsolidateAddressModal = () => {
     if (selectedForConsolidate.length < 2) return;
 
     // Validate: all selected packages must be at the same address
@@ -527,13 +529,21 @@ export default function Dashboard() {
       return;
     }
 
+    setConsolidateForwardAddress({ name: '', street: '', city: '', state: '', zip: '', country: '' });
+    setConsolidateAddressModal(true);
+  };
+
+  const handleRequestConsolidation = async (e) => {
+    e.preventDefault();
+    if (selectedForConsolidate.length < 2) return;
+
     setModalLoading(true);
 
     try {
       const res = await fetch('/api/packages/consolidate-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageIds: selectedForConsolidate })
+        body: JSON.stringify({ packageIds: selectedForConsolidate, forwardAddress: consolidateForwardAddress })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to request consolidation');
@@ -541,6 +551,8 @@ export default function Dashboard() {
       alert('Consolidation requested successfully!');
       setConsolidateMode(false);
       setSelectedForConsolidate([]);
+      setConsolidateAddressModal(false);
+      setConsolidateForwardAddress({ name: '', street: '', city: '', state: '', zip: '', country: '' });
       fetchData();
     } catch (e) {
       alert(e.message);
@@ -1092,7 +1104,7 @@ export default function Dashboard() {
                       <button 
                         className={styles.submitBtn} 
                         style={{padding: '8px 20px', fontSize: '13px'}} 
-                        onClick={isAdmin ? handleConsolidate : handleRequestConsolidation} 
+                        onClick={isAdmin ? handleConsolidate : handleOpenConsolidateAddressModal} 
                         disabled={modalLoading}
                       >
                         {isAdmin ? `Merge ${selectedForConsolidate.length} Packages` : `Request Consolidation (${selectedForConsolidate.length})`}
@@ -1138,7 +1150,7 @@ export default function Dashboard() {
                         {isAdmin && <th>Username</th>}
                         <th>Tracking ID</th>
                         <th>Weight</th>
-                        {isAdmin && <th>Origin Address</th>}
+                        <th>Address</th>
                         {isAdmin && <th>Forward To</th>}
                         <th>Status</th>
                         <th>{isAdmin ? 'Action' : 'Details'}</th>
@@ -1173,18 +1185,18 @@ export default function Dashboard() {
                           {isAdmin && <td>{p.username}</td>}
                           <td style={{fontFamily: 'monospace', color: 'rgba(255,255,255,0.6)', fontSize: '13px'}}>{p.trackingId}</td>
                           <td style={{fontSize: '13px', color: 'rgba(255,255,255,0.5)'}}>{p.weight ? `${p.weight} lbs` : '—'}</td>
-                          {isAdmin && (
-                            <td>
-                              {p.originAddress ? (
-                                <div style={{fontSize: '12px', lineHeight: 1.5}}>
-                                  <div style={{color: '#fff', fontWeight: 500}}>{p.originAddress.name}</div>
-                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.street}</div>
-                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.city}{p.originAddress.state ? `, ${p.originAddress.state}` : ''} {p.originAddress.zip}</div>
-                                  <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.country}</div>
-                                </div>
-                              ) : <span style={{fontSize: '12px', color: 'rgba(255,255,255,0.3)'}}>Not provided</span>}
-                            </td>
-                          )}
+                          <td>
+                            {p.originAddress ? (
+                              <div style={{fontSize: '12px', lineHeight: 1.5}}>
+                                {isAdmin && <div style={{color: '#fff', fontWeight: 500}}>{p.originAddress.name}</div>}
+                                {isAdmin && <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.street}</div>}
+                                <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.city}{p.originAddress.state ? `, ${p.originAddress.state}` : ''} {p.originAddress.zip}</div>
+                                {isAdmin && <div style={{color: 'rgba(255,255,255,0.5)'}}>{p.originAddress.country}</div>}
+                              </div>
+                            ) : (
+                              <span style={{fontSize: '12px', color: 'rgba(255,255,255,0.3)'}}>{p.addressCity || 'Not provided'}</span>
+                            )}
+                          </td>
                           {isAdmin && (
                             <td>
                               {p.forwardAddress ? (
@@ -1916,6 +1928,74 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CONSOLIDATION ADDRESS MODAL ── */}
+      {consolidateAddressModal && (
+        <div className={styles.modalOverlay} onClick={() => !modalLoading && setConsolidateAddressModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <button className={styles.closeBtn} onClick={() => setConsolidateAddressModal(false)} disabled={modalLoading}><FiX /></button>
+            <h3 className={styles.modalTitle}>📦 Consolidation Request</h3>
+            <p className={styles.modalSubtitle}>Select the address where you want the consolidated package shipped to.</p>
+
+            <form onSubmit={handleRequestConsolidation}>
+              {savedAddresses && savedAddresses.length > 0 && (
+                <div className={styles.formGroup} style={{marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.06)'}}>
+                  <label>Use Saved Address</label>
+                  <select className={styles.select} onChange={(e) => {
+                    if (e.target.value === '') return;
+                    const sAddr = savedAddresses[Number(e.target.value)];
+                    setConsolidateForwardAddress({ 
+                      name: sAddr.name, 
+                      street: sAddr.street, 
+                      city: sAddr.city, 
+                      state: sAddr.state || '', 
+                      zip: sAddr.zip || '', 
+                      country: sAddr.country || '' 
+                    });
+                  }}>
+                    <option value="">Choose a saved address...</option>
+                    {savedAddresses.map((sa, i) => (
+                      <option key={i} value={i}>{sa.name} - {sa.street}, {sa.city}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className={styles.formGroup}>
+                <label>Recipient Name</label>
+                <input type="text" className={styles.input} placeholder="Full name for the shipping label" value={consolidateForwardAddress.name} onChange={e => setConsolidateForwardAddress({...consolidateForwardAddress, name: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Street Address</label>
+                <input type="text" className={styles.input} placeholder="123 Main St, Apt 4" value={consolidateForwardAddress.street} onChange={e => setConsolidateForwardAddress({...consolidateForwardAddress, street: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>City</label>
+                <input type="text" className={styles.input} placeholder="e.g. London" value={consolidateForwardAddress.city} onChange={e => setConsolidateForwardAddress({...consolidateForwardAddress, city: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>State / Province</label>
+                <input type="text" className={styles.input} placeholder="e.g. NY" value={consolidateForwardAddress.state} onChange={e => setConsolidateForwardAddress({...consolidateForwardAddress, state: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>ZIP / Postal Code</label>
+                <input type="text" className={styles.input} placeholder="e.g. W1D 4AG" value={consolidateForwardAddress.zip} onChange={e => setConsolidateForwardAddress({...consolidateForwardAddress, zip: e.target.value})} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Country</label>
+                <input type="text" className={styles.input} placeholder="e.g. United Kingdom" value={consolidateForwardAddress.country} onChange={e => setConsolidateForwardAddress({...consolidateForwardAddress, country: e.target.value})} required />
+              </div>
+
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.modalCancelBtn} onClick={() => setConsolidateAddressModal(false)} disabled={modalLoading}>Cancel</button>
+                <button type="submit" className={styles.modalConfirmBtn} disabled={modalLoading || !consolidateForwardAddress.name || !consolidateForwardAddress.street || !consolidateForwardAddress.city || !consolidateForwardAddress.state || !consolidateForwardAddress.zip || !consolidateForwardAddress.country}>
+                  {modalLoading ? 'Submitting...' : <><FiLayers /> Request Consolidation</>}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

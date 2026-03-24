@@ -14,7 +14,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { packageIds } = await req.json();
+    const { packageIds, forwardAddress } = await req.json();
 
     if (!packageIds || packageIds.length < 2) {
       return NextResponse.json({ error: 'Need at least 2 packages to request consolidation' }, { status: 400 });
@@ -47,10 +47,23 @@ export async function POST(req) {
       return NextResponse.json({ error: 'All packages must be at the same address to consolidate.' }, { status: 400 });
     }
 
-    // Update statuses to 'Consolidation Requested'
+    // Build update payload
+    const updatePayload = { status: 'Consolidation Requested' };
+    if (forwardAddress && forwardAddress.street && forwardAddress.city) {
+      updatePayload.forwardAddress = {
+        name: (forwardAddress.name || '').trim(),
+        street: forwardAddress.street.trim(),
+        city: forwardAddress.city.trim(),
+        state: (forwardAddress.state || '').trim(),
+        zip: (forwardAddress.zip || '').trim(),
+        country: (forwardAddress.country || '').trim()
+      };
+    }
+
+    // Update statuses to 'Consolidation Requested' with forward address
     await Package.updateMany(
       { _id: { $in: packageIds } },
-      { $set: { status: 'Consolidation Requested' } }
+      { $set: updatePayload }
     );
 
     // Notify Admin
